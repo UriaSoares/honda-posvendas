@@ -12,7 +12,7 @@ export interface AppUser {
 }
 
 const SEED: Omit<AppUser, "mustChangePassword" | "active">[] = [
-  { email: "uria@grupocaioba.com.br", name: "URIA SOARES", role: "admin", hash: "$2b$10$2vUeY5Fv/9tUHp31LfFLTO17WwbH5Cg9dcciEdmRBq30FHwdPmBUe" },
+  { email: "uria@grupocaioba.com.br", name: "URIA SOARES", role: "admin", hash: "$2b$10$R1ISrfOKOvi11ldW8vd1u.IJvg3OlfeYf98HuQZ/FH9EhRJ6UBdsi" },
 ];
 
 const rKey = (e: string) => `pos:user:${e.toLowerCase().trim()}`;
