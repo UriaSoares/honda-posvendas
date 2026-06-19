@@ -10,7 +10,7 @@ export async function GET(req: Request) {
   const token = searchParams.get("token");
   if (!token) return NextResponse.json({ error: "Token inválido." }, { status: 400 });
 
-  const invite = await redis.get<InviteData>(`cnh:invite:${token}`);
+  const invite = await redis.get<InviteData>(`pos:invite:${token}`);
   if (!invite || invite.expiresAt < Date.now())
     return NextResponse.json({ error: "Link expirado ou inválido." }, { status: 410 });
 
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   if (!token || !password) return NextResponse.json({ error: "Dados incompletos." }, { status: 400 });
   if (password.length < 6) return NextResponse.json({ error: "Senha muito curta." }, { status: 400 });
 
-  const invite = await redis.get<InviteData>(`cnh:invite:${token}`);
+  const invite = await redis.get<InviteData>(`pos:invite:${token}`);
   if (!invite || invite.expiresAt < Date.now())
     return NextResponse.json({ error: "Link expirado ou inválido." }, { status: 410 });
 
@@ -32,7 +32,7 @@ export async function POST(req: Request) {
 
   const hash = await bcrypt.hash(password, 10);
   await updateUser(invite.email, { hash, mustChangePassword: false });
-  await redis.del(`cnh:invite:${token}`);
+  await redis.del(`pos:invite:${token}`);
 
   return NextResponse.json({ ok: true });
 }

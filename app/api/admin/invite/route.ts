@@ -24,7 +24,7 @@ async function getSession() {
 export async function POST(req: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
-  if (!["admin", "gestao", "adm"].includes(session.role))
+  if (!["admin", "gestao"].includes(session.role))
     return NextResponse.json({ error: "Sem permissão." }, { status: 403 });
 
   const { name, email } = await req.json() as { name?: string; email?: string };
@@ -51,7 +51,7 @@ export async function POST(req: Request) {
   const token      = randomUUID();
   const expiresAt  = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 dias
   const inviteData: InviteData = { name: name.trim().toUpperCase(), email: norm, createdBy: session.email, expiresAt };
-  await redis.set(`cnh:invite:${token}`, inviteData, { px: 7 * 24 * 60 * 60 * 1000 });
+  await redis.set(`pos:invite:${token}`, inviteData, { px: 7 * 24 * 60 * 60 * 1000 });
 
   return NextResponse.json({ ok: true, token, defaultPassword: pwd });
 }
