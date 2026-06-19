@@ -41,7 +41,7 @@ export async function POST(req: Request) {
   await createUser({
     email:              norm,
     name:               name.trim().toUpperCase(),
-    role:               "vendedor",
+    role:               "qualidade",
     hash,
     mustChangePassword: true,
     active:             true,
