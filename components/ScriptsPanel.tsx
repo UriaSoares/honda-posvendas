@@ -1,8 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import type { Role } from "@/lib/auth/users";
+import { findTemplate } from "@/lib/whatsapp-templates";
+import ChatPanel, { type ActiveConv } from "@/components/ChatPanel";
 
 type ContactId = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
+interface ScriptsPanelProps { user: { role: Role } }
 
 interface Script { title: string; tag: string; text: string; strat: string }
 interface Contact {
@@ -292,13 +297,17 @@ const SIDEBAR_ITEMS = [
   { group: "Apoio",                    items: [{ id: 6, label: "Objeções" }, { id: 7, label: "Perguntas frequentes" }] },
 ];
 
-export default function ScriptsPanel() {
+export default function ScriptsPanel({ user }: ScriptsPanelProps) {
   const [current, setCurrent] = useState<ContactId>(0);
   const [nome,    setNome]    = useState("");
   const [cons,    setCons]    = useState("");
   const [km,      setKm]      = useState("");
   const [copied,  setCopied]  = useState<number | null>(null);
+  const [active,  setActive]  = useState<ActiveConv | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [sent,    setSent]    = useState<number | null>(null);
 
+  const isManager = user.role === "admin" || user.role === "gestao";
   const c = CONTACTS[current];
 
   function fill(text: string): string {
@@ -312,6 +321,27 @@ export default function ScriptsPanel() {
     navigator.clipboard.writeText(fill(c.scripts[idx].text)).catch(() => {});
     setCopied(idx);
     setTimeout(() => setCopied(null), 2000);
+  }
+
+  async function sendScript(idx: number) {
+    if (!active) return;
+    setSent(idx);
+    try {
+      const r = await fetch("/api/whatsapp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wa: active.wa,
+          phoneNumberId: active.phoneNumberId,
+          contactId: current,
+          scriptId: idx,
+          vars: { nome: nome || active.nome, consultor: cons, km },
+        }),
+      });
+      if (r.ok) setReloadKey(k => k + 1);
+    } finally {
+      setTimeout(() => setSent(null), 2000);
+    }
   }
 
   const sidebarW = 200;
@@ -414,18 +444,37 @@ export default function ScriptsPanel() {
                   ) : part
                 )}
               </div>
-              <div style={{ padding: "8px 14px", borderTop: "1px solid #f1f5f9", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 10, color: "#64748b", fontStyle: "italic", maxWidth: 160, lineHeight: 1.3 }}>{s.strat}</span>
-                <button
-                  onClick={() => copyScript(i)}
-                  style={{
-                    padding: "7px 14px", background: copied === i ? "#166534" : "#082F58", color: "#fff",
-                    border: "none", borderRadius: 7, fontSize: 12, fontWeight: 600,
-                    cursor: "pointer", fontFamily: "inherit",
-                  }}
-                >
-                  {copied === i ? "✓ Copiado!" : "Copiar"}
-                </button>
+              <div style={{ padding: "8px 14px", borderTop: "1px solid #f1f5f9", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <span style={{ fontSize: 10, color: "#64748b", fontStyle: "italic", flex: 1, lineHeight: 1.3 }}>{s.strat}</span>
+                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                  <button
+                    onClick={() => copyScript(i)}
+                    style={{
+                      padding: "7px 12px", background: copied === i ? "#166534" : "#e2e8f0",
+                      color: copied === i ? "#fff" : "#082F58",
+                      border: "none", borderRadius: 7, fontSize: 12, fontWeight: 600,
+                      cursor: "pointer", fontFamily: "inherit",
+                    }}
+                  >
+                    {copied === i ? "✓" : "Copiar"}
+                  </button>
+                  {findTemplate(current, i) && (
+                    <button
+                      onClick={() => sendScript(i)}
+                      disabled={!active || sent === i}
+                      title={active ? `Enviar para ${active.nome}` : "Selecione uma conversa no WhatsApp ao lado"}
+                      style={{
+                        padding: "7px 12px",
+                        background: sent === i ? "#166534" : !active ? "#cbd5e1" : "#25D366",
+                        color: "#fff", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 700,
+                        cursor: !active ? "not-allowed" : "pointer", fontFamily: "inherit",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {sent === i ? "✓ Enviado" : "Enviar"}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))}
@@ -447,6 +496,15 @@ export default function ScriptsPanel() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Painel direito — WhatsApp ao vivo */}
+      <div style={{ width: 380, flexShrink: 0, borderLeft: "1px solid #e2e8f0" }}>
+        <ChatPanel
+          isManager={isManager}
+          reloadKey={reloadKey}
+          onActiveChange={setActive}
+        />
       </div>
     </div>
   );

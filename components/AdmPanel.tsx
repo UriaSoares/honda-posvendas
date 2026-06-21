@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import type { Role } from "@/lib/auth/users";
+import WhatsAppConnect from "@/components/WhatsAppConnect";
 
 interface User { email: string; name: string; role: Role }
 interface Props { user: User }
@@ -21,7 +22,7 @@ const ROLE_LABELS: Record<Role, string> = {
 };
 
 export default function AdmPanel({ user }: Props) {
-  const [tab, setTab] = useState<"users" | "promo">("users");
+  const [tab, setTab] = useState<"users" | "promo" | "whatsapp">("users");
 
   // Users
   const [users,    setUsers]    = useState<UserRecord[]>([]);
@@ -89,7 +90,7 @@ export default function AdmPanel({ user }: Props) {
     setPSaving(false);
   }
 
-  const tabBtn = (id: "users" | "promo", label: string) => (
+  const tabBtn = (id: "users" | "promo" | "whatsapp", label: string) => (
     <button
       onClick={() => setTab(id)}
       style={{
@@ -112,7 +113,11 @@ export default function AdmPanel({ user }: Props) {
       <div style={{ display: "flex", gap: 4, marginBottom: 20, background: "#f1f5f9", borderRadius: 9, padding: 4, width: "fit-content" }}>
         {tabBtn("users", "👥 Usuários")}
         {tabBtn("promo", "📢 Promoção da semana")}
+        {tabBtn("whatsapp", "💬 WhatsApp")}
       </div>
+
+      {/* ── WHATSAPP ── */}
+      {tab === "whatsapp" && <WhatsAppConnect user={user} />}
 
       {/* ── USERS ── */}
       {tab === "users" && (

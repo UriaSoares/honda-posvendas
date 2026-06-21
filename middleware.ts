@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify }                 from "jose";
 
-const PUBLIC_PATHS  = ["/login", "/register", "/display", "/api/auth/login", "/api/auth/register", "/api/auth/logout", "/api/display", "/api/admin/promo"];
+const PUBLIC_PATHS  = ["/login", "/register", "/display", "/api/auth/login", "/api/auth/register", "/api/auth/logout", "/api/display", "/api/admin/promo", "/api/whatsapp/webhook"];
 const COOKIE_NAME   = "posvendas_session";
 const secret        = new TextEncoder().encode(
   process.env.JWT_SECRET ?? "caioba-posvendas-secret-2026-change-in-production"

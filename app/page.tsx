@@ -136,7 +136,7 @@ export default function Home() {
         {tab === "hoje"    && <HojePanel    store={store} />}
         {tab === "amanha"  && <AmanhaPanel  store={store} />}
         {tab === "oficina" && <OficinaPanel store={store} />}
-        {tab === "scripts" && <ScriptsPanel />}
+        {tab === "scripts" && <ScriptsPanel user={user} />}
         {tab === "adm"     && <AdmPanel     user={user} />}
       </div>
     </div>
