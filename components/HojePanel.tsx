@@ -31,19 +31,17 @@ interface Apontamento {
 
 interface Props { store: "CGR" | "TEM" }
 
-const STATUS_COLORS: Record<string, { bg: string; color: string; label: string }> = {
-  "AGENDADO":        { bg: "#e0f2fe", color: "#0369a1", label: "Agendado" },
-  "CHEGOU":          { bg: "#dcfce7", color: "#15803d", label: "Chegou" },
-  "EM SERVIÇO":      { bg: "#fef9c3", color: "#854d0e", label: "Em serviço" },
-  "CONCLUIDO":       { bg: "#f0fdf4", color: "#166534", label: "Concluído" },
-  "CONCLUÍDO":       { bg: "#f0fdf4", color: "#166534", label: "Concluído" },
-  "NAO COMPARECEU":  { bg: "#fef2f2", color: "#b91c1c", label: "Não veio" },
-  "NÃO COMPARECEU":  { bg: "#fef2f2", color: "#b91c1c", label: "Não veio" },
-  "CANCELADO":       { bg: "#fef2f2", color: "#b91c1c", label: "Cancelado" },
-};
+const STATUS_RULES: { match: string; bg: string; color: string; label: string }[] = [
+  { match: "BAIXAD",     bg: "#f0fdf4", color: "#166534", label: "Baixado" },
+  { match: "ABERTO",     bg: "#e0f2fe", color: "#0369a1", label: "Aguardando" },
+  { match: "REAGEND",    bg: "#fef9c3", color: "#854d0e", label: "Reagendado" },
+  { match: "COMPARECEU", bg: "#fef2f2", color: "#b91c1c", label: "Não veio" },
+  { match: "CANCEL",     bg: "#fef2f2", color: "#b91c1c", label: "Cancelado" },
+];
 
 function badge(status: string) {
-  const s = STATUS_COLORS[status?.toUpperCase()] ?? { bg: "#f1f5f9", color: "#64748b", label: status || "—" };
+  const up = (status ?? "").toUpperCase();
+  const s = STATUS_RULES.find(r => up.includes(r.match)) ?? { bg: "#f1f5f9", color: "#64748b", label: status || "—" };
   return (
     <span style={{
       padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700,
@@ -103,14 +101,14 @@ export default function HojePanel({ store }: Props) {
 
   const ap = apontamentos.filter(a => a.Empresa?.toUpperCase().includes(store));
 
-  const status = (s: string) => (a: Agendamento) => (a.Situacao ?? "").toUpperCase().includes(s);
+  const sit = (a: Agendamento) => (a.Situacao ?? "").toUpperCase();
 
-  const agendados  = ag.length;
-  const chegaram   = ag.filter(status("CHEGOU")).length + ag.filter(status("EM SERVI")).length + ag.filter(status("CONCLU")).length;
-  const emServico  = ag.filter(status("EM SERVI")).length;
-  const concluidos = ag.filter(status("CONCLU")).length;
-  const naoVieram  = ag.filter(a => status("NAO")(a) || status("NÃO")(a) || status("CANCEL")(a)).length;
-  const ativos     = ag.filter(a => (a.TipoAgendamento ?? "").toUpperCase().includes("ATIVO")).length;
+  const agendados   = ag.length;
+  const baixados    = ag.filter(a => sit(a).includes("BAIXAD")).length;                       // sucesso
+  const aguardando  = ag.filter(a => sit(a).includes("ABERTO")).length;                       // ainda não chegou
+  const reagendados = ag.filter(a => sit(a).includes("REAGEND")).length;
+  const perdas      = ag.filter(a => sit(a).includes("COMPARECEU") || sit(a).includes("CANCEL")).length;
+  const ativos      = ag.filter(a => (a.TipoAgendamento ?? "").toUpperCase().includes("ATIVO")).length;
 
   const tecnicos = Array.from(
     ap.reduce((m, a) => {
@@ -158,12 +156,12 @@ export default function HojePanel({ store }: Props) {
 
       {/* KPIs */}
       <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-        <KpiCard label="Agendados"     value={agendados}  icon="📅" color="#082F58" />
-        <KpiCard label="Compareceram"  value={chegaram}   icon="✅" color="#15803d" />
-        <KpiCard label="Em serviço"    value={emServico}  icon="🔧" color="#d97706" />
-        <KpiCard label="Concluídos"    value={concluidos} icon="🏁" color="#16a34a" />
-        <KpiCard label="Não vieram"    value={naoVieram}  icon="❌" color="#dc2626" />
-        <KpiCard label="Gerados qual." value={ativos}     icon="📞" color="#7c3aed" />
+        <KpiCard label="Agendados"     value={agendados}   icon="📅" color="#082F58" />
+        <KpiCard label="Baixados"      value={baixados}    icon="✅" color="#16a34a" />
+        <KpiCard label="Aguardando"    value={aguardando}  icon="⏳" color="#0369a1" />
+        <KpiCard label="Reagendados"   value={reagendados} icon="🔁" color="#d97706" />
+        <KpiCard label="Perdas"        value={perdas}      icon="❌" color="#dc2626" />
+        <KpiCard label="Gerados qual." value={ativos}      icon="📞" color="#7c3aed" />
       </div>
 
       {/* Agenda */}
