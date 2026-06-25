@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import type { Role } from "@/lib/auth/users";
 import WhatsAppConnect from "@/components/WhatsAppConnect";
+import ManutencaoSync from "@/components/ManutencaoSync";
 
 interface User { email: string; name: string; role: Role }
 interface Props { user: User }
@@ -22,7 +23,7 @@ const ROLE_LABELS: Record<Role, string> = {
 };
 
 export default function AdmPanel({ user }: Props) {
-  const [tab, setTab] = useState<"users" | "promo" | "whatsapp">("users");
+  const [tab, setTab] = useState<"users" | "promo" | "whatsapp" | "manutencao">("users");
 
   // Users
   const [users,    setUsers]    = useState<UserRecord[]>([]);
@@ -90,7 +91,7 @@ export default function AdmPanel({ user }: Props) {
     setPSaving(false);
   }
 
-  const tabBtn = (id: "users" | "promo" | "whatsapp", label: string) => (
+  const tabBtn = (id: "users" | "promo" | "whatsapp" | "manutencao", label: string) => (
     <button
       onClick={() => setTab(id)}
       style={{
@@ -114,10 +115,14 @@ export default function AdmPanel({ user }: Props) {
         {tabBtn("users", "👥 Usuários")}
         {tabBtn("promo", "📢 Promoção da semana")}
         {tabBtn("whatsapp", "💬 WhatsApp")}
+        {tabBtn("manutencao", "🔧 Manutenção")}
       </div>
 
       {/* ── WHATSAPP ── */}
       {tab === "whatsapp" && <WhatsAppConnect user={user} />}
+
+      {/* ── MANUTENÇÃO ── */}
+      {tab === "manutencao" && <ManutencaoSync />}
 
       {/* ── USERS ── */}
       {tab === "users" && (
