@@ -10,13 +10,22 @@ interface Agendamento {
   TipoOS?: string;
   Situacao?: string;
   TipoAgendamento?: string;
-  AgendamentoDaqui1Dia?: boolean | string;
+  AgendamentoDaqui1Dia?: boolean | string | number;
+  DataRecepcao?: string;
+  InicioOficina?: string;
+  DataOficina?: string;
   Consultor?: string;
   Placa?: string;
   Celular?: string;
 }
 
 interface Props { store: "CGR" | "TEM" }
+
+function dateInSP(offsetDays = 0): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return d.toLocaleDateString("en-CA", { timeZone: "America/Campo_Grande" });
+}
 
 export default function AmanhaPanel({ store }: Props) {
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
@@ -41,9 +50,11 @@ export default function AmanhaPanel({ store }: Props) {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  const amanhaStr = dateInSP(1);
   const amanha = agendamentos.filter(a => {
     if (!a.Empresa?.toUpperCase().includes(store)) return false;
-    return Number(a.AgendamentoDaqui1Dia) === 1 || a.AgendamentoDaqui1Dia === true || a.AgendamentoDaqui1Dia === "Sim";
+    const d = (a.DataRecepcao || a.InicioOficina || a.DataOficina || "").slice(0, 10);
+    return d === amanhaStr || Number(a.AgendamentoDaqui1Dia) === 1;
   });
 
   const sorted = [...amanha].sort((a, b) =>

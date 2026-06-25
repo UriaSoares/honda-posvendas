@@ -5,7 +5,14 @@ import { useState, useEffect, useCallback, useRef } from "react";
 interface Agendamento {
   Empresa?: string; Proprietario?: string; Modelo?: string;
   HoraInicioRecepcao?: string; TipoOS?: string; Situacao?: string;
-  AgendamentoHoje?: boolean | string;
+  AgendamentoHoje?: boolean | string | number;
+  DataRecepcao?: string; InicioOficina?: string; DataOficina?: string;
+}
+
+function dateInSP(offsetDays = 0): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return d.toLocaleDateString("en-CA", { timeZone: "America/Campo_Grande" });
 }
 
 interface Apontamento {
@@ -59,8 +66,12 @@ function Clock() {
 
 /* ── Slide 1: Agenda do dia ── */
 function SlideAgenda({ agendamentos }: { agendamentos: Agendamento[] }) {
+  const hojeStr = dateInSP(0);
   const hoje = agendamentos
-    .filter(a => a.AgendamentoHoje === true || a.AgendamentoHoje === "Sim" || a.AgendamentoHoje === "1")
+    .filter(a => {
+      const d = (a.DataRecepcao || a.InicioOficina || a.DataOficina || "").slice(0, 10);
+      return d === hojeStr || Number(a.AgendamentoHoje) === 1;
+    })
     .sort((a, b) => (a.HoraInicioRecepcao ?? "").localeCompare(b.HoraInicioRecepcao ?? ""));
 
   return (

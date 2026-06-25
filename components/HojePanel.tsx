@@ -10,7 +10,10 @@ interface Agendamento {
   TipoOS?: string;
   Situacao?: string;
   TipoAgendamento?: string;
-  AgendamentoHoje?: boolean | string;
+  AgendamentoHoje?: boolean | string | number;
+  DataRecepcao?: string;
+  InicioOficina?: string;
+  DataOficina?: string;
   Consultor?: string;
   Placa?: string;
   Celular?: string;
@@ -30,6 +33,13 @@ interface Apontamento {
 }
 
 interface Props { store: "CGR" | "TEM" }
+
+// Data (YYYY-MM-DD) no fuso de Mato Grosso do Sul / Brasil. offsetDays desloca dias.
+function dateInSP(offsetDays = 0): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return d.toLocaleDateString("en-CA", { timeZone: "America/Campo_Grande" });
+}
 
 const STATUS_RULES: { match: string; bg: string; color: string; label: string }[] = [
   { match: "BAIXAD",     bg: "#f0fdf4", color: "#166534", label: "Baixado" },
@@ -92,8 +102,11 @@ export default function HojePanel({ store }: Props) {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const isToday = (a: Agendamento) =>
-    Number(a.AgendamentoHoje) === 1 || a.AgendamentoHoje === true || a.AgendamentoHoje === "Sim";
+  const hoje = dateInSP(0);
+  const isToday = (a: Agendamento) => {
+    const d = (a.DataRecepcao || a.InicioOficina || a.DataOficina || "").slice(0, 10);
+    return d === hoje || Number(a.AgendamentoHoje) === 1;
+  };
 
   const ag = agendamentos.filter(a =>
     a.Empresa?.toUpperCase().includes(store) && isToday(a)
