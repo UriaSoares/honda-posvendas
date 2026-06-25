@@ -95,7 +95,7 @@ export default function HojePanel({ store }: Props) {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const isToday = (a: Agendamento) =>
-    a.AgendamentoHoje === true || a.AgendamentoHoje === "Sim" || a.AgendamentoHoje === "1";
+    Number(a.AgendamentoHoje) === 1 || a.AgendamentoHoje === true || a.AgendamentoHoje === "Sim";
 
   const ag = agendamentos.filter(a =>
     a.Empresa?.toUpperCase().includes(store) && isToday(a)

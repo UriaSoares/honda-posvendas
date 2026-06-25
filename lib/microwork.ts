@@ -60,7 +60,86 @@ export interface Apontamento {
   TempoImprodutivo:     string;
   SituacaoApontamento:  string;
   SituacaoServicoItem:  string;
+  HorasPrevistas:       number;
+  HorasApontadas:       number;
   [key: string]: unknown;
+}
+
+// "HH:MM:SS" → horas decimais. Vazio/inválido → 0.
+function parseHoras(s: string | undefined | null): number {
+  if (!s) return 0;
+  const p = s.split(":").map(Number);
+  if (p.length < 2 || p.some(isNaN)) return 0;
+  return Math.round((p[0] + p[1] / 60 + (p[2] ?? 0) / 3600) * 100) / 100;
+}
+
+type Raw = Record<string, unknown>;
+const str = (v: unknown) => (v == null ? "" : String(v));
+const num = (v: unknown) => (typeof v === "number" ? v : Number(v) || 0);
+
+function mapAgendamento(r: Raw): Agendamento {
+  return {
+    Empresa:              str(r.empresa),
+    Consultor:            str(r.consultor),
+    Celular:              str(r.telefonecelularformatado),
+    Chassi:               str(r.chassi),
+    CodigoAgendamento:    num(r.idoficinaagendamento),
+    CPFCNPJ:              str(r.cpfoucnpj),
+    DataOficina:          str(r.datainiciooficina),
+    DataRecepcao:         str(r.datainiciorecepcao),
+    HoraInicioRecepcao:   str(r.horainiciorecepcao),
+    HoraTerminoRecepcao:  str(r.horaterminorecepcao),
+    InicioOficina:        str(r.datahorainiciooficina),
+    PrevisaoEntrega:      str(r.previsaoentrega),
+    TipoOS:               str(r.tipoos),
+    Proprietario:         str(r.proprietario),
+    Modelo:               str(r.modelo),
+    AgendadoPor:          str(r.usuariobaseagendamento),
+    Placa:                str(r.placa),
+    Situacao:             str(r.oficinaagendamentosituacao),
+    SolicitacaoCliente:   str(r.solicitacaocliente),
+    Tecnico:              str(r.tecnico),
+    TipoAgendamento:      str(r.tipodeagendamento),
+    Valor:                num(r.valor),
+    AgendamentoHoje:      num(r.agendamento_hoje),
+    AgendamentoDaqui1Dia: num(r.agendamento_1dia),
+  };
+}
+
+function mapApontamento(r: Raw): Apontamento {
+  return {
+    Empresa:             str(r.descricaoreduzida), // empresa vem aqui
+    Consultor:           "",
+    DataInicio:          str(r.datainicialapontamento),
+    DataTermino:         str(r.datafinalapontamento),
+    Tecnico:             str(r.pessoatecnico),
+    NumeroOS:            num(r.numero) || null,
+    Placa:               str(r.placa),
+    Servico:             str(r.servico),
+    TempoServico:        str(r.temposervico),
+    TempoGasto:          str(r.tempogasto),
+    TempoImprodutivo:    str(r.tempoimprodutivo),
+    SituacaoApontamento: str(r.situacaoapontamento),
+    SituacaoServicoItem: str(r.situacaoapontamentoitem),
+    HorasPrevistas:      parseHoras(str(r.temposervico)),
+    HorasApontadas:      parseHoras(str(r.tempogasto)),
+  };
+}
+
+function mapOS(r: Raw): OrdemServico {
+  return {
+    Empresa:      str(r.empresa),
+    Consultor:    "",
+    DataEmissao:  str(r.dataemissao),
+    NumeroOS:     str(r.numeroos).replace(/[[\]]/g, ""),
+    TipoOS:       "",
+    Proprietario: str(r.proprietario),
+    Modelo:       str(r.modelo),
+    Placa:        str(r.placa),
+    Situacao:     str(r.ospassagemsituacao),
+    Chassi:       str(r.chassi),
+    Quilometragem: num(r.quilometragem),
+  };
 }
 
 export interface Agendamento {
@@ -92,15 +171,17 @@ export interface Agendamento {
 }
 
 export interface OrdemServico {
-  Empresa:     string;
-  Consultor:   string;
-  DataEmissao: string;
-  NumeroOS:    number;
-  TipoOS:      string;
+  Empresa:      string;
+  Consultor:    string;
+  DataEmissao:  string;
+  NumeroOS:     string;
+  TipoOS:       string;
   Proprietario: string;
   Modelo:       string;
   Placa:        string;
   Situacao:     string;
+  Chassi:       string;
+  Quilometragem: number;
   [key: string]: unknown;
 }
 
@@ -134,7 +215,7 @@ export async function getApontamentos(): Promise<Apontamento[]> {
       "SomenteItensEmCortesia=False",
     ].join(";"),
   });
-  return (data ?? []) as Apontamento[];
+  return (Array.isArray(data) ? data : []).map((r) => mapApontamento(r as Raw));
 }
 
 export async function getAgendamentos(): Promise<Agendamento[]> {
@@ -159,7 +240,7 @@ export async function getAgendamentos(): Promise<Agendamento[]> {
       "AgendadoPor=",
     ].join(";"),
   });
-  return (data ?? []) as Agendamento[];
+  return (Array.isArray(data) ? data : []).map((r) => mapAgendamento(r as Raw));
 }
 
 export async function getOrdensServico(): Promise<OrdemServico[]> {
@@ -185,5 +266,5 @@ export async function getOrdensServico(): Promise<OrdemServico[]> {
       `DataEmissaoFinal=${today()}`,
     ].join(";"),
   });
-  return (data ?? []) as OrdemServico[];
+  return (Array.isArray(data) ? data : []).map((r) => mapOS(r as Raw));
 }

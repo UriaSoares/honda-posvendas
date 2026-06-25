@@ -43,7 +43,7 @@ export default function AmanhaPanel({ store }: Props) {
 
   const amanha = agendamentos.filter(a => {
     if (!a.Empresa?.toUpperCase().includes(store)) return false;
-    return a.AgendamentoDaqui1Dia === true || a.AgendamentoDaqui1Dia === "Sim" || a.AgendamentoDaqui1Dia === "1";
+    return Number(a.AgendamentoDaqui1Dia) === 1 || a.AgendamentoDaqui1Dia === true || a.AgendamentoDaqui1Dia === "Sim";
   });
 
   const sorted = [...amanha].sort((a, b) =>
