@@ -1,14 +1,16 @@
 import { redis } from "@/lib/redis";
+import {
+  MODELOS_MANUT, modeloManut,
+  type ManutencaoData, type PrecoModelo, type OleoModelo,
+  type LitroTable, type ItemManut, type Extra,
+} from "@/lib/manutencao-model";
 
 // Pipeline da Tabela de Manutenção / Preços / Óleo / Extras.
 // Fonte da verdade = Google Sheets publicado em CSV. A equipe edita a planilha,
 // o sistema sincroniza para o Redis (pos:manutencao:data) e o app lê de lá.
+// Tipos e helpers puros vivem em lib/manutencao-model.ts.
 
-export type Loja = "CGR" | "BAR";
-export type Categoria = "moto" | "scooter";
-
-// Marcos de revisão da aba Preços.
-export const REVISOES_KM = [1000, 6000, 12000, 18000, 24000, 30000] as const;
+export * from "@/lib/manutencao-model";
 
 // URLs publicadas (CSV). Públicas — podem ficar no código; env sobrepõe se precisar.
 const SHEET_URLS = {
@@ -17,64 +19,6 @@ const SHEET_URLS = {
   oleo:    process.env.SHEET_OLEO_URL    ?? "https://docs.google.com/spreadsheets/d/e/2PACX-1vQUyEpvbUtkuD4qxPt6skVTEqpdX0P3-7sqP4-TqdVBo_B4kyPEG-ZS_oRGRlFpD81g1gMtSJp6HSjD/pub?gid=360826983&single=true&output=csv",
   extras:  process.env.SHEET_EXTRAS_URL  ?? "https://docs.google.com/spreadsheets/d/e/2PACX-1vQUyEpvbUtkuD4qxPt6skVTEqpdX0P3-7sqP4-TqdVBo_B4kyPEG-ZS_oRGRlFpD81g1gMtSJp6HSjD/pub?gid=1545832967&single=true&output=csv",
 };
-
-// Modelos canônicos (de manutenção/óleo) em escopo — até a XRE 300 Sahara.
-export const MODELOS_MANUT = [
-  "POP 110i", "Biz 125", "Elite 125", "PCX 160", "ADV 160",
-  "CG 160", "CG 160 Titan", "NXR 160 Bros", "XRE 190",
-  "CB 300F Twister", "XRE 300 Sahara",
-] as const;
-
-// Categoria de óleo por modelo canônico (Moto vs Scooter).
-export const CATEGORIA: Record<string, Categoria> = {
-  "POP 110i": "moto", "Biz 125": "moto", "Elite 125": "scooter",
-  "PCX 160": "scooter", "ADV 160": "scooter", "CG 160": "moto",
-  "CG 160 Titan": "moto", "NXR 160 Bros": "moto", "XRE 190": "moto",
-  "CB 300F Twister": "moto", "XRE 300 Sahara": "moto",
-};
-
-/**
- * De-para modelo de Preço → modelo de Manutenção/Óleo.
- * CG 160 Cargo/Fan compartilham óleo e manutenção com "CG 160".
- */
-export function modeloManut(modeloPreco: string): string {
-  const m = modeloPreco.trim();
-  if (m === "CG 160 Cargo" || m === "CG 160 Fan") return "CG 160";
-  return m;
-}
-
-/* ── Tipos do dataset ── */
-
-export interface PrecoModelo {
-  modelo: string;                       // nome da aba Preços (selecionável)
-  precos: Record<string, number | null>; // km → preço (R$)
-}
-export interface OleoModelo {
-  modelo: string;
-  litragem: number | null;
-}
-export interface LitroTable {
-  moto:    { CGR: number | null; BAR: number | null };
-  scooter: { CGR: number | null; BAR: number | null };
-}
-export interface ItemManut {
-  item: string;
-  obs: string;
-  valores: Record<string, { k1000: string; k6000: string; k12000: string; aCada: string }>;
-}
-export interface Extra {
-  item: string;
-  precoCGR: number | null;
-  precoBAR: number | null;
-  obs: string;
-}
-export interface ManutencaoData {
-  syncedAt: number;
-  precos:  PrecoModelo[];
-  oleo:    { litro: LitroTable; modelos: OleoModelo[] };
-  extras:  Extra[];
-  manut:   { modelos: string[]; itens: ItemManut[] };
-}
 
 /* ── Helpers ── */
 
@@ -214,19 +158,4 @@ export async function syncManutencao(): Promise<ManutencaoData> {
 
 export async function getManutencao(): Promise<ManutencaoData | null> {
   return redis.get<ManutencaoData>(KEY);
-}
-
-/** Calcula o preço do óleo de um modelo numa loja: litragem × preço do litro (por categoria). */
-export function precoOleo(
-  data: ManutencaoData,
-  modeloPreco: string,
-  loja: Loja,
-): number | null {
-  const canon = modeloManut(modeloPreco);
-  const o = data.oleo.modelos.find((m) => m.modelo === canon);
-  if (!o || o.litragem == null) return null;
-  const cat = CATEGORIA[canon];
-  const litro = cat ? data.oleo.litro[cat][loja] : null;
-  if (litro == null) return null;
-  return Math.round(o.litragem * litro * 100) / 100;
 }

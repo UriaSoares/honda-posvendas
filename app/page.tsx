@@ -6,19 +6,21 @@ import type { Role } from "@/lib/auth/users";
 import HojePanel     from "@/components/HojePanel";
 import AmanhaPanel   from "@/components/AmanhaPanel";
 import OficinaPanel  from "@/components/OficinaPanel";
+import ConversasPanel from "@/components/ConversasPanel";
 import ScriptsPanel  from "@/components/ScriptsPanel";
 import AdmPanel      from "@/components/AdmPanel";
 
 interface User { email: string; name: string; role: Role }
 
-type Tab = "hoje" | "amanha" | "oficina" | "scripts" | "adm";
+type Tab = "hoje" | "amanha" | "oficina" | "conversas" | "scripts" | "adm";
 
 const TABS: { id: Tab; label: string; icon: string; minRole?: Role }[] = [
-  { id: "hoje",    label: "Hoje",            icon: "📅" },
-  { id: "amanha",  label: "Amanhã",          icon: "📆" },
-  { id: "oficina", label: "Oficina ao vivo", icon: "🔧" },
-  { id: "scripts", label: "Scripts",         icon: "💬" },
-  { id: "adm",     label: "ADM",             icon: "⚙️", minRole: "gestao" },
+  { id: "hoje",      label: "Hoje",            icon: "📅" },
+  { id: "amanha",    label: "Amanhã",          icon: "📆" },
+  { id: "oficina",   label: "Oficina ao vivo", icon: "🔧" },
+  { id: "conversas", label: "Conversas",       icon: "💬" },
+  { id: "scripts",   label: "Scripts",         icon: "📄" },
+  { id: "adm",       label: "ADM",             icon: "⚙️", minRole: "gestao" },
 ];
 
 const ROLE_ORDER: Record<Role, number> = { admin: 0, gestao: 1, qualidade: 2 };
@@ -136,6 +138,7 @@ export default function Home() {
         {tab === "hoje"    && <HojePanel    store={store} />}
         {tab === "amanha"  && <AmanhaPanel  store={store} />}
         {tab === "oficina" && <OficinaPanel store={store} />}
+        {tab === "conversas" && <ConversasPanel user={user} store={store} />}
         {tab === "scripts" && <ScriptsPanel user={user} />}
         {tab === "adm"     && <AdmPanel     user={user} />}
       </div>

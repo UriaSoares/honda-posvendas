@@ -9,13 +9,13 @@ type ContactId = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 interface ScriptsPanelProps { user: { role: Role } }
 
-interface Script { title: string; tag: string; text: string; strat: string }
-interface Contact {
+export interface Script { title: string; tag: string; text: string; strat: string }
+export interface Contact {
   title: string; sub: string; phase: string;
   vars: string[]; scripts: Script[]; reactions: string[];
 }
 
-const CONTACTS: Contact[] = [
+export const CONTACTS: Contact[] = [
   {
     title: "Contato 1 — Boas-vindas do Pós-Vendas",
     sub: "1 a 3 dias após a retirada da moto 0km",
