@@ -8,7 +8,7 @@ export type FaseId =
   | "revisao_1" | "revisao_2" | "revisao_3" | "ciclo";
 
 export type ObjecaoId =
-  | "preco" | "empurrando" | "tempo" | "mecanico" | "pensar";
+  | "preco" | "empurrando" | "tempo" | "mecanico" | "pensar" | "pouco_uso";
 
 export interface FaseDef {
   id: FaseId;
@@ -42,6 +42,7 @@ export const OBJECOES: ObjecaoDef[] = [
   { id: "mecanico",   label: "Mecânico próprio",   contactId: 6, scriptId: 1 },
   { id: "tempo",      label: "Sem tempo",          contactId: 6, scriptId: 0 },
   { id: "pensar",     label: "Vou pensar",         contactId: 6, scriptId: 0 },
+  { id: "pouco_uso",  label: "Rodo pouco",         contactId: 6, scriptId: 0 },
 ];
 
 export interface Recomendacao { contactId: number; scriptId: number }

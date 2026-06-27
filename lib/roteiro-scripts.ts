@@ -172,7 +172,28 @@ Como podemos facilitar o pagamento aqui na loja para você manter o carimbo ofic
 export const OBJECAO_SCRIPTS: Partial<Record<ObjecaoId, RoteiroScript[]>> = {
   preco:    REVISAO_CARA,   // "Tá caro"
   mecanico: REVISAO_CARA,   // "Mecânico próprio"
-  // empurrando: [],  // a preencher
-  // tempo:      [],  // a preencher
-  // pensar:     [],  // a preencher
+  empurrando: [
+    {
+      id: "obj_empurrar_1",
+      texto: `Você tem toda razão em ser cauteloso, {nome}. Infelizmente, o mercado tem muitos profissionais ruins que fazem isso.
+Aqui a gente trabalha de forma 100% transparente.
+Nós seguimos exclusivamente a Tabela de Manutenção oficial da Honda. Nosso papel não é inventar serviço, é checar os itens obrigatórios para proteger a sua segurança e manter a sua garantia.
+Se você buscar seu manual agora a gente confere juntos o que troca, o que checa e o que aperta. Faremos apenas o que você autorizar.
+
+Que tal trazer a moto para fazermos apenas o que o manual exige e você mesmo acompanha o que precisa ser feito?`,
+    },
+  ],
+  pouco_uso: [
+    {
+      id: "obj_pouco_uso_1",
+      texto: `Faz todo sentido pensar assim, {nome}, afinal a sua moto está com a Km baixíssima!
+Agora pensa comigo, óleo do motor e o fluido de freio perdem a validade, oxidam e juntam umidade mesmo com a moto parada na garagem.
+
+Se a gente deixar passar essa janela de tempo, você perde sua garantia por falta de lubrificação adequada no motor.
+
+A preventiva é rápida, a gente carimba o manual e você mantém o benefício, vamos?`,
+    },
+  ],
+  // tempo:  [],  // a preencher
+  // pensar: [],  // a preencher
 };
