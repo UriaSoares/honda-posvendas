@@ -1,4 +1,4 @@
-import type { FaseId } from "@/lib/playbook";
+import type { FaseId, ObjecaoId } from "@/lib/playbook";
 
 // Roteiro de scripts por fase de atendimento — fonte de conteúdo do playbook
 // da aba Conversas. Cada fase pode ter VÁRIAS opções de script; o painel
@@ -140,4 +140,39 @@ Essa Revisão de 30.000 km é o que a gente chama de 'Check-up de Ouro'. É a op
 Vamos agendar o seu box para a próxima semana e carimbar o manual para manter ela super valorizada?`,
     },
   ],
+};
+
+// Scripts de contorno de objeção, por etiqueta (ObjecaoId).
+// ⚠️ EM CONSTRUÇÃO — preenchendo aos poucos.
+
+const REVISAO_CARA: RoteiroScript[] = [
+  {
+    id: "obj_cara_1",
+    texto: `Entendo perfeitamente o seu lado, {nome}. Realmente, quando a mão de obra deixa de ser presente da fábrica, a gente pesa no bolso e pensa em economizar.
+A questão é que uma revisão na concessionária não é um gasto, é o que garante toda prevenção do motor, além de manter sua garantia em dia.
+
+O barato em oficinas não autorizadas pode custar caríssimo lá na frente, além de rasgar o seu manual.
+
+Eu tenho liberdade de pedir pro meu gerente parcelar pra você sem juros no cartão, se ele autorizar você agenda pra essa semana? 🛠️`,
+  },
+  {
+    id: "obj_cara_2",
+    texto: `Entendo perfeitamente, {nome}. É natural a gente querer economizar na mão de obra, ainda mais quando ela deixa de ser gratuita pela fábrica.
+
+Mas te falo como sua consultora: o barato pode sair muito caro.
+Qualquer manutenção feita fora da rede autorizada Honda corta os seus 3 anos de garantia.
+
+Se amanhã uma peça da injeção eletrônica ou do motor der problema, o custo vai ser todo seu.
+Você trabalhou tanto pra conquistar sua moto, vai querer arriscar o seu patrimônio no mecânico de bairro?
+
+Como podemos facilitar o pagamento aqui na loja para você manter o carimbo oficial no manual e a moto valorizada?`,
+  },
+];
+
+export const OBJECAO_SCRIPTS: Partial<Record<ObjecaoId, RoteiroScript[]>> = {
+  preco:    REVISAO_CARA,   // "Tá caro"
+  mecanico: REVISAO_CARA,   // "Mecânico próprio"
+  // empurrando: [],  // a preencher
+  // tempo:      [],  // a preencher
+  // pensar:     [],  // a preencher
 };
