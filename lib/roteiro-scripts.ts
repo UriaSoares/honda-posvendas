@@ -194,6 +194,19 @@ Se a gente deixar passar essa janela de tempo, você perde sua garantia por falt
 A preventiva é rápida, a gente carimba o manual e você mantém o benefício, vamos?`,
     },
   ],
-  // tempo:  [],  // a preencher
-  // pensar: [],  // a preencher
+  // tempo e pensar: mantidos pelo sistema existente (não sobrescrever).
+};
+
+// Scripts situacionais (não atrelados a fase nem objeção).
+export const SITUACAO_SCRIPTS: Record<string, RoteiroScript[]> = {
+  sem_resposta: [
+    {
+      id: "sit_sem_resposta_1",
+      rotulo: "Cliente não respondeu",
+      texto: `Oi, {nome}! Tudo certo? Sei que a correria do dia a dia é enorme e acabar esquecendo do painel da moto é normal.
+Te chamei rapidinho só pra te proteger e não deixar você perder a garantia de 3 anos da Honda por passar da quilometragem! 🚨
+
+Pra facilitar sua vida e você não ter trabalho, quer que eu já deixe uma vaga pré-agendada para a próxima terça ou prefere na quinta-feira?`,
+    },
+  ],
 };
