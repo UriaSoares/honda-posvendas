@@ -119,5 +119,25 @@ Me manda uma foto do seu painel para eu calcular sua tolerância exata e não te
     },
   ],
 
-  // ciclo: [],   // a preencher
+  ciclo: [
+    {
+      id: "ciclo_18000",
+      rotulo: "18.000 km",
+      texto: `Fala, {nome}! Tudo bem? Aqui é o {consultor} da Caiobá Honda.
+A nossa parceira de estrada está chegando na marca dos 18.000 km! 🏍️💨
+
+Te chamei porque essa revisão é uma das mais importantes do manual. É nela que fazemos a substituição obrigatória do filtro de ar e checamos o desgaste da relação, o que faz a sua moto continuar econômica e não forçar o motor à toa.
+
+A nossa janela de tolerância de 600 km está rodando. Como estão os Km exatos no seu painel hoje para eu já separar o seu kit de revisão aqui na oficina?`,
+    },
+    {
+      id: "ciclo_30000",
+      rotulo: "30.000 km · Check-up de Ouro",
+      texto: `Olá, {nome}! Tudo certo? Aqui é a equipe de Pós-Vendas da Caiobá Honda. 🛠️
+Estava olhando a sua pasta e vi que a sua moto já passou dos 30.000 km. Estamos entrando na reta final da sua Garantia de 3 anos da Honda!
+
+Essa Revisão de 30.000 km é o que a gente chama de 'Check-up de Ouro'. É a oportunidade perfeita para nossos mecânicos fazerem um pente-fino na moto inteira. Se tiver qualquer detalhe ou defeito de fábrica, a gente já aciona a garantia e resolve para você sem custo de peças antes que o prazo expire!
+Vamos agendar o seu box para a próxima semana e carimbar o manual para manter ela super valorizada?`,
+    },
+  ],
 };
