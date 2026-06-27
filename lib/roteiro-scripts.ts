@@ -210,3 +210,50 @@ Pra facilitar sua vida e você não ter trabalho, quer que eu já deixe uma vaga
     },
   ],
 };
+
+// Perguntas e respostas comuns — aba de consulta do atendente.
+export interface RoteiroFaq {
+  id: string;
+  pergunta: string;
+  oCliente?: string;   // o que o cliente costuma pensar
+  resposta: string;    // resposta oficial
+}
+
+export const FAQ_SCRIPTS: RoteiroFaq[] = [
+  {
+    id: "faq_gratuidade",
+    pergunta: "A primeira e a segunda revisão são 100% de graça? O que eu vou ter que pagar?",
+    oCliente: "Ele confunde a gratuidade oferecida pela fábrica e acha que não gastará um único centavo na concessionária.",
+    resposta: `A Honda garante a mão de obra gratuita nas revisões de 1.000 km e 6.000 km. No entanto, os itens de desgaste natural (como velas, juntas e guarnições), fluidos e os materiais de limpeza/lubrificantes correm por conta do proprietário.`,
+  },
+  {
+    id: "faq_tempo_meses",
+    pergunta: "A minha moto ainda não deu a quilometragem. Eu preciso levar só por causa do tempo (meses)?",
+    resposta: `Sim! A regra da Honda é que a revisão seja feita pelo critério de quilometragem OU pelo período em meses, o que ocorrer primeiro. Os fluidos oxidam e perdem a validade química mesmo com a moto parada na garagem, e ignorar o prazo de meses extingue a garantia legal.`,
+  },
+  {
+    id: "faq_tolerancia",
+    pergunta: "Se eu passar um pouquinho da quilometragem, a fábrica corta a garantia mesmo?",
+    resposta: `A Honda é rigorosa e o sistema cancela a garantia automaticamente se a tolerância for ultrapassada. Os números exatos do manual:
+• 1ª revisão: margem apenas entre 900 km e 1.100 km.
+• 2ª revisão: limite entre 5.400 km e 6.600 km.
+• A partir da 3ª revisão: tolerância cravada em exatos 600 km para mais ou para menos.
+Se o critério for o tempo (meses), a tolerância de atraso sem justificativa é de apenas 1 dia útil.`,
+  },
+  {
+    id: "faq_acessorios",
+    pergunta: "Eu instalei um alarme (ou farol xênon) fora da concessionária. Dá problema na hora da revisão?",
+    resposta: `A Honda não autoriza a utilização de alarmes, rastreadores ou corta-ignição não originais, pois sua instalação exige cortes na fiação que danificam a unidade eletrônica do motor, levando ao cancelamento irrevogável da garantia. Danos por faróis auxiliares ou xênon paralelos também são motivo para extinção da cobertura.`,
+  },
+  {
+    id: "faq_mecanico_bairro",
+    pergunta: "Se eu levar no mecânico perto de casa, vocês descobrem?",
+    oCliente: "Ele tenta sondar se a Caiobá tem como saber.",
+    resposta: `Descobrir não é um problema, a falta do registro da revisão sim. A garantia de 3 anos só se sustenta se todas as revisões periódicas forem executadas somente em concessionárias autorizadas Honda. Se por acaso uma peça der problema e identificarmos ter sido desmontada fora de uma concessionária autorizada, a fábrica cancelará os benefícios imediatamente.`,
+  },
+  {
+    id: "faq_combustivel",
+    pergunta: "O combustível que eu uso afeta a garantia?",
+    resposta: `O uso de combustível adulterado ou de baixa qualidade diminui o desempenho da moto, prejudica o catalisador e pode causar o travamento total do motor. Defeitos decorrentes de combustível ruim não são cobertos pela garantia Honda de forma alguma.`,
+  },
+];
