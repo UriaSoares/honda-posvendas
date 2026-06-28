@@ -83,7 +83,7 @@ function parseOleo(rows: string[][]): { litro: LitroTable; modelos: OleoModelo[]
   for (const r of rows.slice(1)) {
     const modelo = (r[0] ?? "").trim();
     if (modelo && EM_ESCOPO.has(modeloManut(modelo))) {
-      modelos.push({ modelo, litragem: brNum(r[1]) });
+      modelos.push({ modelo, litragem: brNum(r[1]), precoCGR: brNum(r[2]), precoBAR: brNum(r[3]) });
     }
     // mini-tabela de preço do litro nas colunas E/F
     const label = (r[4] ?? "").trim().toLowerCase();

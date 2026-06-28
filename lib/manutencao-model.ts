@@ -30,7 +30,12 @@ export interface PrecoModelo {
   modelo: string;
   precos: Record<string, number | null>;
 }
-export interface OleoModelo { modelo: string; litragem: number | null }
+export interface OleoModelo {
+  modelo: string;
+  litragem: number | null;
+  precoCGR: number | null;
+  precoBAR: number | null;
+}
 export interface LitroTable {
   moto:    { CGR: number | null; BAR: number | null };
   scooter: { CGR: number | null; BAR: number | null };
@@ -49,7 +54,7 @@ export interface ManutencaoData {
   manut:   { modelos: string[]; itens: ItemManut[] };
 }
 
-/** Preço do óleo de um modelo numa loja: litragem × preço do litro (por categoria). */
+/** Preço do óleo de um modelo numa loja — lê direto da planilha (coluna Preço CGR/BAR). */
 export function precoOleo(
   data: ManutencaoData,
   modeloPreco: string,
@@ -57,9 +62,6 @@ export function precoOleo(
 ): number | null {
   const canon = modeloManut(modeloPreco);
   const o = data.oleo.modelos.find((m) => m.modelo === canon);
-  if (!o || o.litragem == null) return null;
-  const cat = CATEGORIA[canon];
-  const litro = cat ? data.oleo.litro[cat][loja] : null;
-  if (litro == null) return null;
-  return Math.round(o.litragem * litro * 100) / 100;
+  if (!o) return null;
+  return loja === "CGR" ? o.precoCGR : o.precoBAR;
 }
