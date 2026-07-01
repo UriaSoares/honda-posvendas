@@ -14,7 +14,7 @@ interface Apontamento {
   HorasApontadas?: number; HorasPrevistas?: number; SituacaoApontamento?: string;
 }
 interface Preco { modelo: string; precos: Record<string, number | null> }
-interface Promo { title: string; body: string }
+interface PromoSlot { titulo: string; texto: string; imagem: string; upload: boolean }
 interface Membro { cargo: string; nome: string }
 interface Contato { cargo: string; nome: string; email?: string; telefone?: string }
 interface LojaInfo { nome: string; contatos: Contato[]; whatsapp?: string; site?: string }
@@ -112,14 +112,20 @@ function SlideTecnicos({ apontamentos, loja }: { apontamentos: Apontamento[]; lo
   );
 }
 
-/* ───────── Slide 3: Promoção ───────── */
-function SlidePromo({ promo }: { promo: Promo }) {
+/* ───────── Slide 3: Promoção (imagem da semana) ───────── */
+function SlidePromo({ slots, atual }: { slots: PromoSlot[]; atual: number | null }) {
+  const s = atual != null ? slots[atual] : null;
+  const src = s ? (s.upload ? `/api/display/promo-img/${atual}` : s.imagem) : "";
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
-      <div style={{ fontSize: 15, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: 3, marginBottom: 24 }}>📢 Promoção da semana</div>
-      {promo.title ? (<>
-        <div style={{ fontSize: 52, fontWeight: 900, color: "#FBB814", lineHeight: 1.15, marginBottom: 24, maxWidth: 900 }}>{promo.title}</div>
-        <div style={{ fontSize: 26, color: "rgba(255,255,255,0.8)", lineHeight: 1.7, maxWidth: 760, whiteSpace: "pre-wrap" }}>{promo.body}</div>
+    <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", gap: 20 }}>
+      <div style={{ fontSize: 15, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: 3 }}>📢 Promoção da semana</div>
+      {s ? (<>
+        {src && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={src} alt={s.titulo || "Promoção"} style={{ maxWidth: "100%", maxHeight: s.texto ? "62vh" : "74vh", objectFit: "contain", borderRadius: 12 }} />
+        )}
+        {s.texto && <div style={{ fontSize: 26, color: "rgba(255,255,255,0.85)", lineHeight: 1.6, maxWidth: 900, whiteSpace: "pre-wrap" }}>{s.texto}</div>}
+        {!src && s.texto && <div style={{ fontSize: 40, fontWeight: 900, color: "#FBB814" }}>{s.titulo}</div>}
       </>) : <div style={{ fontSize: 22, color: "rgba(255,255,255,0.3)" }}>Nenhuma promoção configurada.</div>}
     </div>
   );
@@ -264,7 +270,8 @@ export default function DisplayPage() {
   const [ag, setAg] = useState<Agendamento[]>([]);
   const [ap, setAp] = useState<Apontamento[]>([]);
   const [precos, setPrecos] = useState<Preco[]>([]);
-  const [promo, setPromo] = useState<Promo>({ title: "", body: "" });
+  const [promoSlots, setPromoSlots] = useState<PromoSlot[]>([]);
+  const [promoAtual, setPromoAtual] = useState<number | null>(null);
   const [config, setConfig] = useState<Config | null>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -282,7 +289,7 @@ export default function DisplayPage() {
       const [rd, rp, rc] = await Promise.all([fetch("/api/display/data"), fetch("/api/admin/promo"), fetch("/api/display/config")]);
       const [dd, dp, dc] = await Promise.all([rd.json(), rp.json(), rc.json()]);
       setAg(dd.agendamentos ?? []); setAp(dd.apontamentos ?? []); setPrecos(dd.precos ?? []);
-      setPromo(dp.promo ?? { title: "", body: "" }); setConfig(dc.config ?? null);
+      setPromoSlots(dp.promo?.slots ?? []); setPromoAtual(dp.atual ?? null); setConfig(dc.config ?? null);
     } catch { /* mantém dados antigos */ }
   }, []);
 
@@ -377,7 +384,7 @@ export default function DisplayPage() {
       <div style={{ flex: 1, padding: "28px 36px", overflow: "hidden" }}>
         {slide === 0 && <SlideAgenda agendamentos={ag} loja={loja} />}
         {slide === 1 && <SlideTecnicos apontamentos={ap} loja={loja} />}
-        {slide === 2 && <SlidePromo promo={promo} />}
+        {slide === 2 && <SlidePromo slots={promoSlots} atual={promoAtual} />}
         {slide === 3 && <SlideEquipe equipe={eq} loja={loja} />}
         {slide === 4 && info && <SlideInfo horarios={config!.horarios} info={info} />}
         {slide === 5 && <SlidePrecos precos={precos} />}

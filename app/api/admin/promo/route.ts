@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { redis } from "@/lib/redis";
 import { verifySessionToken } from "@/lib/auth/session";
+import { getPromo, savePromo, slotAtual, type PromoConfig } from "@/lib/promo";
 
-const KEY = "pos:promo";
-
+// GET público (usado pelo telão) — devolve os slots + qual está no ar.
 export async function GET() {
-  const raw = await redis.get<{ title: string; body: string; updatedAt?: string }>(KEY);
-  return NextResponse.json({ promo: raw ?? { title: "", body: "" } });
+  const cfg = await getPromo();
+  return NextResponse.json({ promo: cfg, atual: slotAtual(cfg) });
 }
 
 export async function POST(req: NextRequest) {
@@ -17,8 +16,13 @@ export async function POST(req: NextRequest) {
   if (!user || (user.role !== "admin" && user.role !== "gestao")) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
   }
-  const body = await req.json();
-  const promo = { title: String(body.title ?? ""), body: String(body.body ?? ""), updatedAt: new Date().toISOString() };
-  await redis.set(KEY, promo);
-  return NextResponse.json({ ok: true, promo });
+  const body = await req.json() as PromoConfig;
+  const slots = (body.slots ?? []).slice(0, 4).map(s => ({
+    titulo: String(s.titulo ?? ""),
+    texto:  String(s.texto ?? ""),
+    imagem: String(s.imagem ?? ""),
+    upload: !!s.upload,
+  }));
+  await savePromo({ slots });
+  return NextResponse.json({ ok: true });
 }
