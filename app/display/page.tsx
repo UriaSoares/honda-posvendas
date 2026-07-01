@@ -17,7 +17,7 @@ interface Preco { modelo: string; precos: Record<string, number | null> }
 interface Promo { title: string; body: string }
 interface Membro { cargo: string; nome: string }
 interface Contato { cargo: string; nome: string; email?: string; telefone?: string }
-interface LojaInfo { nome: string; contatos: Contato[] }
+interface LojaInfo { nome: string; contatos: Contato[]; whatsapp?: string; site?: string }
 interface Config {
   horarios: { label: string; horario: string }[];
   equipe: { CGR: Membro[][]; TEM: Membro[][] };
@@ -131,16 +131,21 @@ function SlideEquipe({ equipe, loja }: { equipe: Membro[][]; loja: Loja }) {
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <SlideHead titulo="Nossa Equipe" sub={LOJA_NOME[loja]} n="" />
       <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 22 }}>
-        {equipe.map((nivel, i) => (
-          <div key={i} style={{ display: "flex", justifyContent: "center", gap: 16, flexWrap: "wrap" }}>
-            {nivel.map((m, j) => (
-              <div key={j} style={{ background: i === 0 ? "#FBB814" : "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 12, padding: "14px 22px", minWidth: 180, textAlign: "center" }}>
-                <div style={{ fontSize: 13, color: i === 0 ? "#663d00" : "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 700 }}>{m.cargo}</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: i === 0 ? "#082F58" : "#fff", marginTop: 3 }}>{m.nome || "—"}</div>
-              </div>
-            ))}
-          </div>
-        ))}
+        {equipe.map((nivel, i) => {
+          // Nível 0 (Direção) = só título. Demais níveis: só caixas com nome.
+          const visiveis = i === 0 ? nivel : nivel.filter(m => m.nome.trim());
+          if (visiveis.length === 0) return null;
+          return (
+            <div key={i} style={{ display: "flex", justifyContent: "center", gap: 16, flexWrap: "wrap" }}>
+              {visiveis.map((m, j) => (
+                <div key={j} style={{ background: i === 0 ? "#FBB814" : "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 12, padding: "14px 22px", minWidth: 180, textAlign: "center" }}>
+                  <div style={{ fontSize: 13, color: i === 0 ? "#663d00" : "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 700 }}>{m.cargo}</div>
+                  {i !== 0 && <div style={{ fontSize: 18, fontWeight: 700, color: "#fff", marginTop: 3 }}>{m.nome}</div>}
+                </div>
+              ))}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -160,6 +165,22 @@ function SlideInfo({ horarios, info }: { horarios: Config["horarios"]; info: Loj
               <div style={{ fontSize: 26, fontWeight: 800, color: "#fff" }}>{h.horario}</div>
             </div>
           ))}
+          {(info.whatsapp || info.site) && (
+            <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+              {info.whatsapp && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 15, color: "rgba(255,255,255,0.5)" }}>💬 Agendamento WhatsApp</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: "#25D366" }}>{info.whatsapp}</div>
+                </div>
+              )}
+              {info.site && (
+                <div>
+                  <div style={{ fontSize: 15, color: "rgba(255,255,255,0.5)" }}>🌐 Site</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: "#FBB814" }}>{info.site}</div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 15, color: "#FBB814", textTransform: "uppercase", letterSpacing: 1, marginBottom: 14, fontWeight: 700 }}>👥 Contatos</div>

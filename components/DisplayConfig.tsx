@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 
 interface Membro { cargo: string; nome: string }
 interface Contato { cargo: string; nome: string; email?: string; telefone?: string }
-interface LojaInfo { nome: string; contatos: Contato[] }
+interface LojaInfo { nome: string; contatos: Contato[]; whatsapp?: string; site?: string }
 interface Config {
   pin: string;
   horarios: { label: string; horario: string }[];
@@ -74,14 +74,25 @@ export default function DisplayConfig() {
 
       {/* Organograma */}
       <Card title={`👥 Nossa Equipe — ${loja === "CGR" ? "Campo Grande" : "Barretos"}`}>
+        <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 12 }}>
+          Nível 1 (Direção) mostra só o cargo. Nos demais, caixas sem nome não aparecem no telão — use <strong>+ Adicionar</strong> / <strong>×</strong> para definir a quantidade.
+        </div>
         {cfg.equipe[loja].map((nivel, ni) => (
-          <div key={ni} style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", marginBottom: 4 }}>Nível {ni + 1}</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 8 }}>
+          <div key={ni} style={{ marginBottom: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+              <span style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase" }}>Nível {ni + 1}</span>
+              <button onClick={() => patch(c => { c.equipe[loja][ni].push({ cargo: "", nome: "" }); })}
+                style={{ fontSize: 11, color: "#082F58", background: "#e2e8f0", border: "none", borderRadius: 6, padding: "2px 8px", cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>+ Adicionar</button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 8 }}>
               {nivel.map((m, mi) => (
-                <div key={mi} style={{ display: "flex", gap: 6 }}>
-                  <input value={m.cargo} placeholder="Cargo" onChange={e => patch(c => { c.equipe[loja][ni][mi].cargo = e.target.value; })} style={{ ...inp, flex: "0 0 40%" }} />
-                  <input value={m.nome} placeholder="Nome" onChange={e => patch(c => { c.equipe[loja][ni][mi].nome = e.target.value; })} style={{ ...inp, flex: 1 }} />
+                <div key={mi} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <input value={m.cargo} placeholder="Cargo" onChange={e => patch(c => { c.equipe[loja][ni][mi].cargo = e.target.value; })} style={{ ...inp, flex: ni === 0 ? 1 : "0 0 40%" }} />
+                  {ni !== 0 && <input value={m.nome} placeholder="Nome" onChange={e => patch(c => { c.equipe[loja][ni][mi].nome = e.target.value; })} style={{ ...inp, flex: 1 }} />}
+                  {nivel.length > 1 && (
+                    <button onClick={() => patch(c => { c.equipe[loja][ni].splice(mi, 1); })}
+                      title="Remover" style={{ flexShrink: 0, width: 26, height: 30, border: "1px solid #fecaca", background: "#fef2f2", color: "#b91c1c", borderRadius: 6, cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>×</button>
+                  )}
                 </div>
               ))}
             </div>
@@ -91,6 +102,19 @@ export default function DisplayConfig() {
 
       {/* Contatos */}
       <Card title={`ℹ️ Informações / Contatos — ${loja === "CGR" ? "Campo Grande" : "Barretos"}`}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+          <div>
+            <Lbl>💬 Agendamento WhatsApp</Lbl>
+            <input value={cfg.info[loja].whatsapp ?? ""} placeholder="(67) 99999-9999"
+              onChange={e => patch(c => { c.info[loja].whatsapp = e.target.value; })} style={inp} />
+          </div>
+          <div>
+            <Lbl>🌐 Site</Lbl>
+            <input value={cfg.info[loja].site ?? ""} placeholder="www.caiobahonda.com.br"
+              onChange={e => patch(c => { c.info[loja].site = e.target.value; })} style={inp} />
+          </div>
+        </div>
+        <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 8 }}>Contatos:</div>
         {cfg.info[loja].contatos.map((ct, ci) => (
           <div key={ci} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10, paddingBottom: 10, borderBottom: "1px solid #f1f5f9" }}>
             <input value={ct.cargo} placeholder="Cargo" onChange={e => patch(c => { c.info[loja].contatos[ci].cargo = e.target.value; })} style={inp} />

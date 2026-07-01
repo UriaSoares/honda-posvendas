@@ -5,7 +5,12 @@ import { redis } from "@/lib/redis";
 
 export interface Membro { cargo: string; nome: string }
 export interface Contato { cargo: string; nome: string; email?: string; telefone?: string }
-export interface LojaInfo { nome: string; contatos: Contato[] }
+export interface LojaInfo {
+  nome: string;
+  contatos: Contato[];
+  whatsapp?: string;   // Agendamento por WhatsApp
+  site?: string;
+}
 
 export interface DisplayConfig {
   pin: string;                       // 4 dígitos numéricos
@@ -40,6 +45,8 @@ export const DEFAULT_CONFIG: DisplayConfig = {
   info: {
     TEM: {
       nome: "Barretos",
+      whatsapp: "",
+      site: "www.caiobahonda.com.br",
       contatos: [
         { cargo: "Gerente Geral de Pós-Vendas", nome: "Deyvid Maycon Alves da Silva", email: "super_oficina@caiobahonda.com.br" },
         { cargo: "Gerente de Pós-Vendas", nome: "Sheila da Silva Amancio", email: "superoficina_barretos@caiobahonda.com.br", telefone: "(17) 3321-5540 — Ramal 3703" },
@@ -48,6 +55,8 @@ export const DEFAULT_CONFIG: DisplayConfig = {
     },
     CGR: {
       nome: "Campo Grande",
+      whatsapp: "",
+      site: "www.caiobahonda.com.br",
       contatos: [
         { cargo: "Gerente Geral de Pós-Vendas", nome: "Deyvid Maycon Alves da Silva", email: "super_oficina@caiobahonda.com.br" },
         { cargo: "Gerente Geral de Loja", nome: "Marcia Maria Guerra Soares", email: "gerenciazahran@caiobahonda.com.br", telefone: "(67) 3345-1000 — Ramal 2101" },
