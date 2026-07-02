@@ -95,7 +95,7 @@ function LoginForm() {
             <div style={{ width: 48, height: 48, background: "#1060B0", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0, boxShadow: "0 4px 16px rgba(0,0,0,.25)" }}>🔧</div>
             <div>
               <div style={{ fontFamily: "var(--font-mulish), sans-serif", fontWeight: 800, fontSize: 18, color: "#fff", lineHeight: 1.1 }}>Caiobá Honda</div>
-              <div style={{ fontFamily: "var(--font-mulish), sans-serif", fontWeight: 500, fontSize: 13, color: "#FBB814", letterSpacing: "0.04em" }}>Mapa da Qualidade</div>
+              <div style={{ fontFamily: "var(--font-mulish), sans-serif", fontWeight: 500, fontSize: 13, color: "#FBB814", letterSpacing: "0.04em" }}>Collaboration</div>
             </div>
           </div>
 
@@ -130,7 +130,7 @@ function LoginForm() {
         <div style={{ animation: "fadeIn 1s .7s ease both", opacity: 0, position: "relative" }}>
           <div style={{ height: 1, background: "rgba(255,255,255,.12)", marginBottom: 20 }} />
           <p style={{ fontFamily: "var(--font-mulish), sans-serif", fontSize: 11, color: "rgba(255,255,255,.38)", letterSpacing: "0.05em", textTransform: "uppercase", fontWeight: 600 }}>
-            Desacelere, seu bem maior é a vida.
+            “Conectando o sonho de quem realiza à força de quem produz.”
           </p>
         </div>
       </div>
