@@ -67,3 +67,13 @@ export function precoOleo(
   if (!o) return null;
   return loja === "CGR" ? o.precoCGR : o.precoBAR;
 }
+
+/** Soma dos itens extras (Kit de lubrificação + Rosca do dreno) numa loja. */
+export function totalExtras(data: ManutencaoData, loja: Loja): number | null {
+  const valores = data.extras
+    .map((e) => (loja === "CGR" ? e.precoCGR : e.precoBAR))
+    .filter((v): v is number => v != null);
+  if (valores.length === 0) return null;
+  const soma = valores.reduce((s, v) => s + v, 0);
+  return Math.round(soma * 100) / 100;
+}

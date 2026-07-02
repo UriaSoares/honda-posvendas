@@ -5,7 +5,7 @@ import type { Role } from "@/lib/auth/users";
 import { CONTACTS } from "@/components/ScriptsPanel";
 import { FASES, OBJECOES, faseDef, type FaseId, type ObjecaoId } from "@/lib/playbook";
 import { ROTEIRO_SCRIPTS, OBJECAO_SCRIPTS, SITUACAO_SCRIPTS, FAQ_SCRIPTS, type RoteiroScript } from "@/lib/roteiro-scripts";
-import { precoOleo, type ManutencaoData, type Loja } from "@/lib/manutencao-model";
+import { precoOleo, totalExtras, type ManutencaoData, type Loja } from "@/lib/manutencao-model";
 
 interface Props { user: { email: string; role: Role }; store: "CGR" | "TEM" }
 
@@ -78,7 +78,8 @@ export default function ConversasPanel({ user, store }: Props) {
   const km = f?.km ?? null;
   const base = precoModelo && km != null ? precoModelo.precos[String(km)] ?? null : null;
   const oleo = manut && modelo ? precoOleo(manut, modelo, loja) : null;
-  const total = base != null || oleo != null ? (base ?? 0) + (oleo ?? 0) : null;
+  const extras = manut ? totalExtras(manut, loja) : null;
+  const total = base != null || oleo != null || extras != null ? (base ?? 0) + (oleo ?? 0) + (extras ?? 0) : null;
 
   // scripts a exibir (situação > objeção > fase)
   const scripts: RoteiroScript[] =
@@ -237,7 +238,8 @@ export default function ConversasPanel({ user, store }: Props) {
                 <Ctx label="Revisão" value={km != null ? `${km.toLocaleString("pt-BR")} km` : "—"} />
                 <Ctx label="Base" value={money(base)} />
                 <Ctx label="Óleo" value={money(oleo)} />
-                <Ctx label="Estimativa" value={money(total)} accent />
+                <Ctx label="Extras" value={money(extras)} />
+                <Ctx label="Estimativa" value={money(total)} accent wide />
               </div>
 
               {/* Fases */}
@@ -307,9 +309,9 @@ function Chip({ children, on, danger, warn, onClick }: { children: React.ReactNo
     </button>
   );
 }
-function Ctx({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+function Ctx({ label, value, accent, wide }: { label: string; value: string; accent?: boolean; wide?: boolean }) {
   return (
-    <div style={{ background: accent ? "#082F58" : "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px" }}>
+    <div style={{ background: accent ? "#082F58" : "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px", gridColumn: wide ? "1 / -1" : undefined }}>
       <div style={{ fontSize: 9, color: accent ? "rgba(255,255,255,0.6)" : "#94a3b8", textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</div>
       <div style={{ fontSize: 14, fontWeight: 800, color: accent ? "#FBB814" : "#082F58" }}>{value}</div>
     </div>
