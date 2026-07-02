@@ -49,11 +49,23 @@ export interface Extra { item: string; precoCGR: number | null; precoBAR: number
 export interface TransparenciaItem { codigo: string; descricao: string; preco: string }
 export interface ManutencaoData {
   syncedAt: number;
-  precos:  PrecoModelo[];
+  precos:  { CGR: PrecoModelo[]; BAR: PrecoModelo[] };
   oleo:    { litro: LitroTable; modelos: OleoModelo[] };
   extras:  Extra[];
   manut:   { modelos: string[]; itens: ItemManut[] };
   transparencia?: TransparenciaItem[];
+}
+
+/** Preço de uma revisão (km) de um modelo, na loja informada. */
+export function precoRevisao(
+  data: ManutencaoData,
+  modeloPreco: string,
+  km: number,
+  loja: Loja,
+): number | null {
+  const lista = data.precos[loja] ?? [];
+  const p = lista.find((x) => x.modelo === modeloPreco);
+  return p?.precos[String(km)] ?? null;
 }
 
 /** Preço do óleo de um modelo numa loja — lê direto da planilha (coluna Preço CGR/BAR). */

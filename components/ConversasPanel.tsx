@@ -5,7 +5,7 @@ import type { Role } from "@/lib/auth/users";
 import { CONTACTS } from "@/components/ScriptsPanel";
 import { FASES, OBJECOES, faseDef, type FaseId, type ObjecaoId } from "@/lib/playbook";
 import { ROTEIRO_SCRIPTS, OBJECAO_SCRIPTS, SITUACAO_SCRIPTS, FAQ_SCRIPTS, type RoteiroScript } from "@/lib/roteiro-scripts";
-import { precoOleo, totalExtras, type ManutencaoData, type Loja } from "@/lib/manutencao-model";
+import { precoOleo, precoRevisao, totalExtras, type ManutencaoData, type Loja } from "@/lib/manutencao-model";
 
 interface Props { user: { email: string; role: Role }; store: "CGR" | "TEM" }
 
@@ -74,9 +74,9 @@ export default function ConversasPanel({ user, store }: Props) {
 
   // contexto de preço
   const f = faseDef(fase);
-  const precoModelo = manut?.precos.find(p => p.modelo === modelo) ?? null;
+  const precosLoja = manut?.precos[loja] ?? [];
   const km = f?.km ?? null;
-  const base = precoModelo && km != null ? precoModelo.precos[String(km)] ?? null : null;
+  const base = manut && modelo && km != null ? precoRevisao(manut, modelo, km, loja) : null;
   const oleo = manut && modelo ? precoOleo(manut, modelo, loja) : null;
   const extras = manut ? totalExtras(manut, loja) : null;
   const total = base != null || oleo != null || extras != null ? (base ?? 0) + (oleo ?? 0) + (extras ?? 0) : null;
@@ -231,7 +231,7 @@ export default function ConversasPanel({ user, store }: Props) {
               <select value={modelo} onChange={e => setModelo(e.target.value)}
                 style={{ width: "100%", padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 13, fontFamily: "inherit", marginBottom: 12, background: "#fff" }}>
                 <option value="">Selecione o modelo…</option>
-                {manut?.precos.map(p => <option key={p.modelo} value={p.modelo}>{p.modelo}</option>)}
+                {precosLoja.map(p => <option key={p.modelo} value={p.modelo}>{p.modelo}</option>)}
               </select>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>

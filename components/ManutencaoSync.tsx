@@ -8,7 +8,7 @@ interface ItemManut { item: string; obs: string; valores: Record<string, { k1000
 interface Extra { item: string; precoCGR: number | null; precoBAR: number | null; obs: string }
 interface ManutencaoData {
   syncedAt: number;
-  precos: PrecoModelo[];
+  precos: { CGR: PrecoModelo[]; BAR: PrecoModelo[] };
   oleo: { litro: { moto: { CGR: number | null; BAR: number | null }; scooter: { CGR: number | null; BAR: number | null } }; modelos: OleoModelo[] };
   extras: Extra[];
   manut: { modelos: string[]; itens: ItemManut[] };
@@ -26,6 +26,7 @@ export default function ManutencaoSync() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [msg, setMsg]       = useState("");
+  const [lojaPrecos, setLojaPrecos] = useState<"CGR" | "BAR">("CGR");
 
   const load = useCallback(async () => {
     const r = await fetch("/api/manutencao");
@@ -90,7 +91,15 @@ export default function ManutencaoSync() {
       ) : (
         <>
           {/* Preços */}
-          <Card title={`Preços de revisão (${data.precos.length} modelos)`}>
+          <Card title={`Preços de revisão (${data.precos[lojaPrecos].length} modelos)`}>
+            <div style={{ display: "flex", gap: 6, marginBottom: 12, background: "#f1f5f9", borderRadius: 8, padding: 4, width: "fit-content" }}>
+              {(["CGR", "BAR"] as const).map(l => (
+                <button key={l} onClick={() => setLojaPrecos(l)}
+                  style={{ padding: "6px 14px", border: "none", borderRadius: 6, cursor: "pointer", fontFamily: "inherit", fontWeight: 700, fontSize: 12, background: lojaPrecos === l ? "#082F58" : "transparent", color: lojaPrecos === l ? "#fff" : "#64748b" }}>
+                  {l === "CGR" ? "Campo Grande" : "Barretos"}
+                </button>
+              ))}
+            </div>
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                 <thead>
@@ -100,7 +109,7 @@ export default function ManutencaoSync() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.precos.map(p => (
+                  {data.precos[lojaPrecos].map(p => (
                     <tr key={p.modelo} style={{ borderTop: "1px solid #f1f5f9" }}>
                       <td style={{ padding: "7px 12px", fontWeight: 600, color: "#0f172a" }}>{p.modelo}</td>
                       {REVISOES.map(k => (

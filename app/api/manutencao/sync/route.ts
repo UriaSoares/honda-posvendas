@@ -17,7 +17,7 @@ export async function POST() {
       ok: true,
       syncedAt: data.syncedAt,
       resumo: {
-        modelosPreco: data.precos.length,
+        modelosPreco: data.precos.CGR.length,
         modelosOleo:  data.oleo.modelos.length,
         itensManut:   data.manut.itens.length,
         extras:       data.extras.length,

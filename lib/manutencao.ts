@@ -14,7 +14,8 @@ export * from "@/lib/manutencao-model";
 
 // URLs publicadas (CSV). Públicas — podem ficar no código; env sobrepõe se precisar.
 const SHEET_URLS = {
-  precos:  process.env.SHEET_PRECOS_URL  ?? "https://docs.google.com/spreadsheets/d/e/2PACX-1vQUyEpvbUtkuD4qxPt6skVTEqpdX0P3-7sqP4-TqdVBo_B4kyPEG-ZS_oRGRlFpD81g1gMtSJp6HSjD/pub?gid=0&single=true&output=csv",
+  precosCGR: process.env.SHEET_PRECOS_CGR_URL ?? "https://docs.google.com/spreadsheets/d/e/2PACX-1vQUyEpvbUtkuD4qxPt6skVTEqpdX0P3-7sqP4-TqdVBo_B4kyPEG-ZS_oRGRlFpD81g1gMtSJp6HSjD/pub?gid=0&single=true&output=csv",
+  precosBAR: process.env.SHEET_PRECOS_BAR_URL ?? "https://docs.google.com/spreadsheets/d/e/2PACX-1vQUyEpvbUtkuD4qxPt6skVTEqpdX0P3-7sqP4-TqdVBo_B4kyPEG-ZS_oRGRlFpD81g1gMtSJp6HSjD/pub?gid=1342314751&single=true&output=csv",
   manut:   process.env.SHEET_MANUT_URL   ?? "https://docs.google.com/spreadsheets/d/e/2PACX-1vQUyEpvbUtkuD4qxPt6skVTEqpdX0P3-7sqP4-TqdVBo_B4kyPEG-ZS_oRGRlFpD81g1gMtSJp6HSjD/pub?gid=1185053200&single=true&output=csv",
   oleo:    process.env.SHEET_OLEO_URL    ?? "https://docs.google.com/spreadsheets/d/e/2PACX-1vQUyEpvbUtkuD4qxPt6skVTEqpdX0P3-7sqP4-TqdVBo_B4kyPEG-ZS_oRGRlFpD81g1gMtSJp6HSjD/pub?gid=360826983&single=true&output=csv",
   extras:  process.env.SHEET_EXTRAS_URL  ?? "https://docs.google.com/spreadsheets/d/e/2PACX-1vQUyEpvbUtkuD4qxPt6skVTEqpdX0P3-7sqP4-TqdVBo_B4kyPEG-ZS_oRGRlFpD81g1gMtSJp6HSjD/pub?gid=1545832967&single=true&output=csv",
@@ -146,8 +147,9 @@ function parseTransparencia(rows: string[][]): TransparenciaItem[] {
 const KEY = "pos:manutencao:data";
 
 export async function syncManutencao(): Promise<ManutencaoData> {
-  const [precosRows, manutRows, oleoRows, extrasRows, transpRows] = await Promise.all([
-    fetchCSV(SHEET_URLS.precos),
+  const [precosCGRRows, precosBARRows, manutRows, oleoRows, extrasRows, transpRows] = await Promise.all([
+    fetchCSV(SHEET_URLS.precosCGR),
+    fetchCSV(SHEET_URLS.precosBAR),
     fetchCSV(SHEET_URLS.manut),
     fetchCSV(SHEET_URLS.oleo),
     fetchCSV(SHEET_URLS.extras),
@@ -155,7 +157,7 @@ export async function syncManutencao(): Promise<ManutencaoData> {
   ]);
   const data: ManutencaoData = {
     syncedAt: Date.now(),
-    precos:   parsePrecos(precosRows),
+    precos:   { CGR: parsePrecos(precosCGRRows), BAR: parsePrecos(precosBARRows) },
     oleo:     parseOleo(oleoRows),
     extras:   parseExtras(extrasRows),
     manut:    parseManut(manutRows),
