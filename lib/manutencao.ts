@@ -2,7 +2,7 @@ import { redis } from "@/lib/redis";
 import {
   MODELOS_MANUT, modeloManut,
   type ManutencaoData, type PrecoModelo, type OleoModelo,
-  type LitroTable, type ItemManut, type Extra,
+  type LitroTable, type ItemManut, type Extra, type TransparenciaItem,
 } from "@/lib/manutencao-model";
 
 // Pipeline da Tabela de Manutenção / Preços / Óleo / Extras.
@@ -18,6 +18,7 @@ const SHEET_URLS = {
   manut:   process.env.SHEET_MANUT_URL   ?? "https://docs.google.com/spreadsheets/d/e/2PACX-1vQUyEpvbUtkuD4qxPt6skVTEqpdX0P3-7sqP4-TqdVBo_B4kyPEG-ZS_oRGRlFpD81g1gMtSJp6HSjD/pub?gid=1185053200&single=true&output=csv",
   oleo:    process.env.SHEET_OLEO_URL    ?? "https://docs.google.com/spreadsheets/d/e/2PACX-1vQUyEpvbUtkuD4qxPt6skVTEqpdX0P3-7sqP4-TqdVBo_B4kyPEG-ZS_oRGRlFpD81g1gMtSJp6HSjD/pub?gid=360826983&single=true&output=csv",
   extras:  process.env.SHEET_EXTRAS_URL  ?? "https://docs.google.com/spreadsheets/d/e/2PACX-1vQUyEpvbUtkuD4qxPt6skVTEqpdX0P3-7sqP4-TqdVBo_B4kyPEG-ZS_oRGRlFpD81g1gMtSJp6HSjD/pub?gid=1545832967&single=true&output=csv",
+  transparencia: process.env.SHEET_TRANSP_URL ?? "https://docs.google.com/spreadsheets/d/e/2PACX-1vQUyEpvbUtkuD4qxPt6skVTEqpdX0P3-7sqP4-TqdVBo_B4kyPEG-ZS_oRGRlFpD81g1gMtSJp6HSjD/pub?gid=976982083&single=true&output=csv",
 };
 
 /* ── Helpers ── */
@@ -134,16 +135,23 @@ function parseManut(rows: string[][]): { modelos: string[]; itens: ItemManut[] }
   return { modelos, itens };
 }
 
+function parseTransparencia(rows: string[][]): TransparenciaItem[] {
+  return rows.slice(1)
+    .filter(r => (r[1] ?? "").trim())   // precisa de descrição
+    .map(r => ({ codigo: (r[0] ?? "").trim(), descricao: (r[1] ?? "").trim(), preco: (r[2] ?? "").trim() }));
+}
+
 /* ── Sync e leitura ── */
 
 const KEY = "pos:manutencao:data";
 
 export async function syncManutencao(): Promise<ManutencaoData> {
-  const [precosRows, manutRows, oleoRows, extrasRows] = await Promise.all([
+  const [precosRows, manutRows, oleoRows, extrasRows, transpRows] = await Promise.all([
     fetchCSV(SHEET_URLS.precos),
     fetchCSV(SHEET_URLS.manut),
     fetchCSV(SHEET_URLS.oleo),
     fetchCSV(SHEET_URLS.extras),
+    fetchCSV(SHEET_URLS.transparencia),
   ]);
   const data: ManutencaoData = {
     syncedAt: Date.now(),
@@ -151,6 +159,7 @@ export async function syncManutencao(): Promise<ManutencaoData> {
     oleo:     parseOleo(oleoRows),
     extras:   parseExtras(extrasRows),
     manut:    parseManut(manutRows),
+    transparencia: parseTransparencia(transpRows),
   };
   await redis.set(KEY, data);
   return data;

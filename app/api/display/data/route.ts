@@ -7,7 +7,7 @@ import { getManutencao } from "@/lib/manutencao";
 export async function GET() {
   try {
     const [ag, ap, manut] = await Promise.all([getAgendamentos(), getApontamentos(), getManutencao()]);
-    return NextResponse.json({ agendamentos: ag, apontamentos: ap, precos: manut?.precos ?? [] });
+    return NextResponse.json({ agendamentos: ag, apontamentos: ap, precos: manut?.precos ?? [], transparencia: manut?.transparencia ?? [] });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }

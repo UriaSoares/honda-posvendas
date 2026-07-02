@@ -46,12 +46,14 @@ export interface ItemManut {
   valores: Record<string, { k1000: string; k6000: string; k12000: string; aCada: string }>;
 }
 export interface Extra { item: string; precoCGR: number | null; precoBAR: number | null; obs: string }
+export interface TransparenciaItem { codigo: string; descricao: string; preco: string }
 export interface ManutencaoData {
   syncedAt: number;
   precos:  PrecoModelo[];
   oleo:    { litro: LitroTable; modelos: OleoModelo[] };
   extras:  Extra[];
   manut:   { modelos: string[]; itens: ItemManut[] };
+  transparencia?: TransparenciaItem[];
 }
 
 /** Preço do óleo de um modelo numa loja — lê direto da planilha (coluna Preço CGR/BAR). */

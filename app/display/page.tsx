@@ -13,8 +13,10 @@ interface Apontamento {
   Empresa?: string; Tecnico?: string; NumeroOS?: number | null; Servico?: string; Placa?: string;
   HorasApontadas?: number; HorasPrevistas?: number; SituacaoApontamento?: string;
 }
-interface Preco { modelo: string; precos: Record<string, number | null> }
+interface TransparenciaItem { codigo: string; descricao: string; preco: string }
 interface PromoSlot { titulo: string; texto: string; imagem: string; upload: boolean }
+
+const PUBHTML_TRANSP = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQUyEpvbUtkuD4qxPt6skVTEqpdX0P3-7sqP4-TqdVBo_B4kyPEG-ZS_oRGRlFpD81g1gMtSJp6HSjD/pubhtml?gid=976982083&single=true";
 interface Membro { cargo: string; nome: string }
 interface Contato { cargo: string; nome: string; email?: string; telefone?: string }
 interface LojaInfo { nome: string; contatos: Contato[]; whatsapp?: string; site?: string }
@@ -24,12 +26,9 @@ interface Config {
   info: { CGR: LojaInfo; TEM: LojaInfo };
 }
 
-const SLIDE_INTERVAL = 15_000;
-const REVISOES = ["1000", "6000", "12000", "18000", "24000", "30000"];
+// Duração de cada slide (Preços fica mais tempo por causa da rolagem).
+const DURATIONS = [15_000, 15_000, 15_000, 15_000, 15_000, 45_000];
 const LOJA_NOME: Record<Loja, string> = { CGR: "Campo Grande", TEM: "Barretos" };
-
-const money = (v: number | null | undefined) =>
-  v == null ? "—" : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 function Clock() {
   const [t, setT] = useState(new Date());
@@ -207,28 +206,45 @@ function SlideInfo({ horarios, info }: { horarios: Config["horarios"]; info: Loj
   );
 }
 
-/* ───────── Slide 6: Tabela de Preços ───────── */
-function SlidePrecos({ precos }: { precos: Preco[] }) {
-  const comValor = precos.filter(p => REVISOES.some(k => p.precos[k] != null));
+/* ───────── Slide 6: Tabela de Preços (Transparência) ───────── */
+function SlidePrecos({ itens }: { itens: TransparenciaItem[] }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || itens.length === 0) return;
+    let raf = 0;
+    const step = () => {
+      const max = el.scrollHeight - el.clientHeight;
+      if (max > 0) el.scrollTop = (Date.now() * 0.03) % max;  // rolagem contínua (base no relógio)
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [itens]);
+
+  const qr = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=${encodeURIComponent(PUBHTML_TRANSP)}`;
+
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      <SlideHead titulo="Tabela de Preços — Revisões" sub="Valores de mão de obra por revisão" n="" />
-      <div style={{ flex: 1, overflowY: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 18 }}>
-          <thead><tr>
-            <th style={{ padding: "10px 14px", textAlign: "left", color: "rgba(255,255,255,0.45)", fontSize: 13, textTransform: "uppercase", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>Modelo</th>
-            {REVISOES.map(k => <th key={k} style={{ padding: "10px 14px", textAlign: "right", color: "rgba(255,255,255,0.45)", fontSize: 13, borderBottom: "1px solid rgba(255,255,255,0.1)" }}>{Number(k).toLocaleString("pt-BR")}</th>)}
-          </tr></thead>
-          <tbody>
-            {comValor.map(p => (
-              <tr key={p.modelo} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                <td style={{ padding: "12px 14px", fontWeight: 700, color: "#fff" }}>{p.modelo}</td>
-                {REVISOES.map(k => <td key={k} style={{ padding: "12px 14px", textAlign: "right", color: p.precos[k] != null ? "#FBB814" : "rgba(255,255,255,0.25)", fontWeight: 600 }}>{money(p.precos[k])}</td>)}
-              </tr>
+      <SlideHead titulo="Tabela de Preços — Peças" sub="Transparência de preços" n={`${itens.length} itens`} />
+      <div style={{ flex: 1, display: "flex", gap: 24, minHeight: 0 }}>
+        <div ref={ref} style={{ flex: 1, overflow: "hidden" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))", columnGap: 28, alignContent: "start" }}>
+            {itens.map((it, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "7px 4px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                <span style={{ fontSize: 16, color: "rgba(255,255,255,0.85)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.descricao}</span>
+                <span style={{ fontSize: 16, color: "#FBB814", fontWeight: 700, whiteSpace: "nowrap" }}>{it.preco}</span>
+              </div>
             ))}
-            {comValor.length === 0 && <tr><td colSpan={7} style={{ padding: 50, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 18 }}>Sincronize a tabela de preços no ADM.</td></tr>}
-          </tbody>
-        </table>
+            {itens.length === 0 && <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 18, padding: 40 }}>Sincronize a Transparência no ADM.</div>}
+          </div>
+        </div>
+        <div style={{ flex: "0 0 280px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 18, background: "rgba(255,255,255,0.05)", borderRadius: 16, padding: 24 }}>
+          <div style={{ fontSize: 20, fontWeight: 800, textAlign: "center", lineHeight: 1.3 }}>Veja <span style={{ color: "#FBB814" }}>todos os preços</span> no seu celular</div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={qr} alt="QR Code da tabela de preços" style={{ width: 220, height: 220, background: "#fff", borderRadius: 12, padding: 8 }} />
+          <div style={{ fontSize: 15, color: "rgba(255,255,255,0.6)", textAlign: "center" }}>Aponte a câmera para o QR Code</div>
+        </div>
       </div>
     </div>
   );
@@ -269,11 +285,10 @@ export default function DisplayPage() {
   const [slide, setSlide] = useState(0);
   const [ag, setAg] = useState<Agendamento[]>([]);
   const [ap, setAp] = useState<Apontamento[]>([]);
-  const [precos, setPrecos] = useState<Preco[]>([]);
+  const [transp, setTransp] = useState<TransparenciaItem[]>([]);
   const [promoSlots, setPromoSlots] = useState<PromoSlot[]>([]);
   const [promoAtual, setPromoAtual] = useState<number | null>(null);
   const [config, setConfig] = useState<Config | null>(null);
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // valida PIN salvo quando escolhe a loja
   useEffect(() => {
@@ -288,19 +303,25 @@ export default function DisplayPage() {
     try {
       const [rd, rp, rc] = await Promise.all([fetch("/api/display/data"), fetch("/api/admin/promo"), fetch("/api/display/config")]);
       const [dd, dp, dc] = await Promise.all([rd.json(), rp.json(), rc.json()]);
-      setAg(dd.agendamentos ?? []); setAp(dd.apontamentos ?? []); setPrecos(dd.precos ?? []);
+      setAg(dd.agendamentos ?? []); setAp(dd.apontamentos ?? []); setTransp(dd.transparencia ?? []);
       setPromoSlots(dp.promo?.slots ?? []); setPromoAtual(dp.atual ?? null); setConfig(dc.config ?? null);
     } catch { /* mantém dados antigos */ }
   }, []);
 
   const SLIDES = 6;
+  // busca de dados
   useEffect(() => {
     if (!pinOk) return;
     fetchAll();
     const dataId = setInterval(fetchAll, 2 * 60 * 1000);
-    timer.current = setInterval(() => setSlide(s => (s + 1) % SLIDES), SLIDE_INTERVAL);
-    return () => { clearInterval(dataId); if (timer.current) clearInterval(timer.current); };
+    return () => clearInterval(dataId);
   }, [pinOk, fetchAll]);
+  // rotação com duração por slide
+  useEffect(() => {
+    if (!pinOk) return;
+    const id = setTimeout(() => setSlide(s => (s + 1) % SLIDES), DURATIONS[slide] ?? 15_000);
+    return () => clearTimeout(id);
+  }, [pinOk, slide]);
 
   async function submitPin(p: string) {
     const r = await fetch("/api/display/auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: p }) });
@@ -387,7 +408,7 @@ export default function DisplayPage() {
         {slide === 2 && <SlidePromo slots={promoSlots} atual={promoAtual} />}
         {slide === 3 && <SlideEquipe equipe={eq} loja={loja} />}
         {slide === 4 && info && <SlideInfo horarios={config!.horarios} info={info} />}
-        {slide === 5 && <SlidePrecos precos={precos} />}
+        {slide === 5 && <SlidePrecos itens={transp} />}
       </div>
 
       <div style={{ display: "flex", justifyContent: "center", gap: 8, padding: "12px 0 18px", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
