@@ -6,7 +6,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 const GRAPH = "https://graph.facebook.com";
 
 function version(): string {
-  return process.env.META_GRAPH_VERSION ?? "v21.0";
+  return process.env.META_GRAPH_VERSION ?? "v25.0";
 }
 
 function getToken(): string {
