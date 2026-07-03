@@ -1,9 +1,16 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, useEffect, FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import Script from "next/script";
 import { Mulish, Saira } from "next/font/google";
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
+
+declare global {
+  interface Window { onTurnstileVerified?: (token: string) => void }
+}
 
 const mulish = Mulish({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"], variable: "--font-mulish" });
 const saira  = Saira({ subsets: ["latin"], weight: ["400", "700", "900"], style: ["normal", "italic"], variable: "--font-saira" });
@@ -41,16 +48,26 @@ function LoginForm() {
   const [focused,  setFocused]  = useState("");
   const [hover,    setHover]    = useState<"btn" | "esqueci" | "telao" | null>(null);
   const [pressed,  setPressed]  = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
+
+  useEffect(() => {
+    window.onTurnstileVerified = (token: string) => setTurnstileToken(token);
+    return () => { delete window.onTurnstileVerified; };
+  }, []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      setError("Aguarde a verificação de segurança concluir e tente novamente.");
+      return;
+    }
     setLoading(true);
     setError("");
     try {
       const res  = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, turnstileToken }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Erro ao fazer login."); return; }
@@ -180,6 +197,10 @@ function LoginForm() {
               </div>
             </div>
 
+            {TURNSTILE_SITE_KEY && (
+              <div className="cf-turnstile" data-sitekey={TURNSTILE_SITE_KEY} data-callback="onTurnstileVerified" data-theme="light" style={{ marginBottom: 20 }} />
+            )}
+
             <button
               type="submit" disabled={loading}
               onMouseEnter={() => setHover("btn")} onMouseLeave={() => { setHover(null); setPressed(false); }}
@@ -215,8 +236,11 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense>
-      <LoginForm />
-    </Suspense>
+    <>
+      {TURNSTILE_SITE_KEY && <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js" strategy="afterInteractive" async defer />}
+      <Suspense>
+        <LoginForm />
+      </Suspense>
+    </>
   );
 }
