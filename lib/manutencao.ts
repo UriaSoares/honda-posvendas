@@ -168,5 +168,11 @@ export async function syncManutencao(): Promise<ManutencaoData> {
 }
 
 export async function getManutencao(): Promise<ManutencaoData | null> {
-  return redis.get<ManutencaoData>(KEY);
+  const data = await redis.get<ManutencaoData>(KEY);
+  if (!data) return null;
+  // Compatibilidade: caches antigos guardavam `precos` como lista única (pré-loja).
+  // Nesse caso, tratamos como "sem dados válidos" — força uma nova sincronização
+  // em vez de quebrar a tela com o formato errado.
+  if (Array.isArray(data.precos)) return null;
+  return data;
 }
