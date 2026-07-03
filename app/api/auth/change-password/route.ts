@@ -2,7 +2,7 @@ import { NextResponse }                              from "next/server";
 import { cookies }                                   from "next/headers";
 import bcrypt                                        from "bcryptjs";
 import { verifySessionToken, createSessionToken, COOKIE_NAME, EXPIRES_IN } from "@/lib/auth/session";
-import { findUserByEmailAdmin, updateUser }          from "@/lib/auth/users";
+import { findUserByEmailAdmin, updateUser, userLojas } from "@/lib/auth/users";
 
 export async function POST(req: Request) {
   const jar   = await cookies();
@@ -40,6 +40,7 @@ export async function POST(req: Request) {
     name:               user.name,
     role:               user.role,
     mustChangePassword: false,
+    lojas:              userLojas(user),
   });
 
   const res = NextResponse.json({ ok: true });

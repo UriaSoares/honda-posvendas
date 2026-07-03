@@ -1,11 +1,12 @@
 import { SignJWT, jwtVerify } from "jose";
-import type { Role } from "./users";
+import type { Role, Loja } from "./users";
 
 export interface SessionPayload {
   email:              string;
   name:               string;
   role:               Role;
   mustChangePassword: boolean;
+  lojas:              Loja[];
 }
 
 const COOKIE_NAME = "posvendas_session";
@@ -31,6 +32,7 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
       name:               payload.name               as string,
       role:               payload.role               as Role,
       mustChangePassword: (payload.mustChangePassword as boolean) ?? false,
+      lojas:              (payload.lojas              as Loja[]) ?? [],
     };
   } catch {
     return null;

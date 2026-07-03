@@ -1,6 +1,6 @@
 import { NextResponse }                        from "next/server";
 import bcrypt                                  from "bcryptjs";
-import { findUserByEmail }                     from "@/lib/auth/users";
+import { findUserByEmail, userLojas }          from "@/lib/auth/users";
 import { createSessionToken, COOKIE_NAME, EXPIRES_IN } from "@/lib/auth/session";
 
 export async function POST(req: Request) {
@@ -21,7 +21,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Credenciais inválidas." }, { status: 401 });
     }
 
-    const token = await createSessionToken({ email: user.email, name: user.name, role: user.role, mustChangePassword: user.mustChangePassword });
+    const token = await createSessionToken({
+      email: user.email, name: user.name, role: user.role,
+      mustChangePassword: user.mustChangePassword, lojas: userLojas(user),
+    });
 
     const res = NextResponse.json({
       ok:   true,

@@ -1,6 +1,7 @@
 import { redis } from "@/lib/redis";
 
 export type Role = "admin" | "gestao" | "qualidade";
+export type Loja = "CGR" | "TEM";
 
 export interface AppUser {
   email:              string;
@@ -9,10 +10,17 @@ export interface AppUser {
   hash:               string;
   mustChangePassword: boolean;
   active:             boolean;
+  lojas:              Loja[];   // relevante para role "qualidade"; admin/gestao sempre têm acesso às duas
+  whatsapp?:           string;
+}
+
+/** Lojas efetivas do usuário: admin/gestao sempre têm acesso às duas. */
+export function userLojas(user: Pick<AppUser, "role" | "lojas">): Loja[] {
+  return user.role === "qualidade" ? (user.lojas ?? []) : ["CGR", "TEM"];
 }
 
 const SEED: Omit<AppUser, "mustChangePassword" | "active">[] = [
-  { email: "uria@grupocaioba.com.br", name: "URIA SOARES", role: "admin", hash: "$2b$10$R1ISrfOKOvi11ldW8vd1u.IJvg3OlfeYf98HuQZ/FH9EhRJ6UBdsi" },
+  { email: "uria@grupocaioba.com.br", name: "URIA SOARES", role: "admin", hash: "$2b$10$R1ISrfOKOvi11ldW8vd1u.IJvg3OlfeYf98HuQZ/FH9EhRJ6UBdsi", lojas: ["CGR", "TEM"] },
 ];
 
 const rKey = (e: string) => `pos:user:${e.toLowerCase().trim()}`;
@@ -68,6 +76,19 @@ export async function updateUser(
 export async function createUser(user: AppUser): Promise<void> {
   await redis.set(rKey(user.email), user);
   await redis.sadd(SKEY, user.email.toLowerCase().trim());
+}
+
+/** Migra o registro do usuário para um novo e-mail (chave primária). */
+export async function renameUserEmail(oldEmail: string, newEmail: string): Promise<AppUser | null> {
+  const current = await findUserByEmailAdmin(oldEmail);
+  if (!current) return null;
+  const normNew = newEmail.toLowerCase().trim();
+  const updated = { ...current, email: normNew };
+  await redis.set(rKey(normNew), updated);
+  await redis.del(rKey(oldEmail));
+  await redis.srem(SKEY, oldEmail.toLowerCase().trim());
+  await redis.sadd(SKEY, normNew);
+  return updated;
 }
 
 export function defaultPassword(name: string): string {

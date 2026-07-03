@@ -2,24 +2,22 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import type { Role } from "@/lib/auth/users";
+import type { Role, Loja } from "@/lib/auth/users";
 import HojePanel     from "@/components/HojePanel";
 import AmanhaPanel   from "@/components/AmanhaPanel";
 import OficinaPanel  from "@/components/OficinaPanel";
 import ConversasPanel from "@/components/ConversasPanel";
-import ScriptsPanel  from "@/components/ScriptsPanel";
 import AdmPanel      from "@/components/AdmPanel";
 
-interface User { email: string; name: string; role: Role }
+interface User { email: string; name: string; role: Role; lojas?: Loja[] }
 
-type Tab = "hoje" | "amanha" | "oficina" | "conversas" | "scripts" | "adm";
+type Tab = "hoje" | "amanha" | "oficina" | "conversas" | "adm";
 
 const TABS: { id: Tab; label: string; icon: string; minRole?: Role }[] = [
   { id: "hoje",      label: "Hoje",            icon: "📅" },
   { id: "amanha",    label: "Amanhã",          icon: "📆" },
   { id: "oficina",   label: "Oficina ao vivo", icon: "🔧" },
   { id: "conversas", label: "Conversas",       icon: "💬" },
-  { id: "scripts",   label: "Scripts",         icon: "📄" },
   { id: "adm",       label: "ADM",             icon: "⚙️", minRole: "gestao" },
 ];
 
@@ -44,7 +42,7 @@ export default function Home() {
   const router            = useRouter();
   const [user, setUser]   = useState<User | null>(null);
   const [tab,  setTab]    = useState<Tab>("hoje");
-  const [store, setStore] = useState<"CGR" | "TEM">("CGR");
+  const [store, setStore] = useState<Loja>("CGR");
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -52,6 +50,8 @@ export default function Home() {
       .then(({ user }) => {
         if (!user) { router.push("/login"); return; }
         setUser(user);
+        const lojas: Loja[] = user.lojas?.length ? user.lojas : ["CGR", "TEM"];
+        setStore(lojas[0]);
       })
       .catch(() => router.push("/login"));
   }, [router]);
@@ -72,6 +72,8 @@ export default function Home() {
 
   const initials    = user.name.split(" ").filter(Boolean).slice(0, 2).map(p => p[0]).join("");
   const visibleTabs = TABS.filter(t => canSeeTab(user.role, t.minRole));
+  const myLojas: Loja[] = user.lojas?.length ? user.lojas : ["CGR", "TEM"];
+  const canToggleStore  = myLojas.length > 1;
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "var(--font-manrope), sans-serif" }}>
@@ -92,11 +94,12 @@ export default function Home() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <button
-            onClick={() => setStore(s => s === "CGR" ? "TEM" : "CGR")}
+            onClick={canToggleStore ? () => setStore(s => s === "CGR" ? "TEM" : "CGR") : undefined}
             style={{
               background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)",
               borderRadius: 6, padding: "4px 10px", color: "#fff", fontSize: 12,
-              fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+              fontWeight: 600, cursor: canToggleStore ? "pointer" : "default",
+              fontFamily: "inherit", opacity: canToggleStore ? 1 : 0.85,
             }}
           >
             🏪 {store === "CGR" ? "CGR — Campo Grande" : "TEM — Barretos"}
@@ -139,7 +142,6 @@ export default function Home() {
         {tab === "amanha"  && <AmanhaPanel  store={store} />}
         {tab === "oficina" && <OficinaPanel store={store} />}
         {tab === "conversas" && <ConversasPanel user={user} store={store} />}
-        {tab === "scripts" && <ScriptsPanel user={user} />}
         {tab === "adm"     && <AdmPanel     user={user} />}
       </div>
     </div>

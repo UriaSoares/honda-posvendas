@@ -3,7 +3,7 @@ import { cookies }                   from "next/headers";
 import { randomUUID }                from "crypto";
 import bcrypt                        from "bcryptjs";
 import { verifySessionToken, COOKIE_NAME } from "@/lib/auth/session";
-import { createUser, findUserByEmailAdmin, defaultPassword } from "@/lib/auth/users";
+import { createUser, findUserByEmailAdmin, defaultPassword, type Role, type Loja } from "@/lib/auth/users";
 import { redis }                     from "@/lib/redis";
 
 export interface InviteData {
@@ -27,9 +27,23 @@ export async function POST(req: Request) {
   if (!["admin", "gestao"].includes(session.role))
     return NextResponse.json({ error: "Sem permissão." }, { status: 403 });
 
-  const { name, email } = await req.json() as { name?: string; email?: string };
+  const { name, email, role, lojas, whatsapp } = await req.json() as {
+    name?: string; email?: string; role?: Role; lojas?: Loja[]; whatsapp?: string;
+  };
   if (!name?.trim() || !email?.trim())
     return NextResponse.json({ error: "Nome e e-mail são obrigatórios." }, { status: 400 });
+
+  // Gestão só pode convidar usuários do tipo Qualidade.
+  const finalRole: Role = session.role === "gestao" ? "qualidade" : (role ?? "qualidade");
+
+  let finalLojas: Loja[] = [];
+  if (finalRole === "qualidade") {
+    finalLojas = (lojas ?? []).filter((l): l is Loja => l === "CGR" || l === "TEM");
+    if (finalLojas.length === 0)
+      return NextResponse.json({ error: "Selecione ao menos uma loja para o usuário." }, { status: 400 });
+  } else {
+    finalLojas = ["CGR", "TEM"];
+  }
 
   const norm = email.toLowerCase().trim();
   const existing = await findUserByEmailAdmin(norm);
@@ -41,10 +55,12 @@ export async function POST(req: Request) {
   await createUser({
     email:              norm,
     name:               name.trim().toUpperCase(),
-    role:               "qualidade",
+    role:               finalRole,
     hash,
     mustChangePassword: true,
     active:             true,
+    lojas:              finalLojas,
+    whatsapp:           whatsapp?.trim() || undefined,
   });
 
   // Gera token de convite (para a página de registro confirmar a conta)
