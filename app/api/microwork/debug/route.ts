@@ -31,5 +31,27 @@ export async function GET() {
       out[nome] = { erro: String(e) };
     }
   }
+
+  // Valores distintos de Situacao / TipoAgendamento (pós-mapeamento) com contagem.
+  try {
+    const ag = await getAgendamentos();
+    const count = (field: "Situacao" | "TipoAgendamento") => {
+      const m = new Map<string, number>();
+      for (const a of ag) {
+        const v = (a[field] ?? "").toString() || "(vazio)";
+        m.set(v, (m.get(v) ?? 0) + 1);
+      }
+      return Object.fromEntries(m);
+    };
+    out.distintos = {
+      Situacao: count("Situacao"),
+      TipoAgendamento: count("TipoAgendamento"),
+    };
+    const diego = ag.filter(a => (a.Proprietario ?? "").toUpperCase().includes("DIEGO ALEJANDRO"));
+    out.diegoAlejandro = diego;
+  } catch (e) {
+    out.distintosErro = String(e);
+  }
+
   return NextResponse.json(out);
 }
