@@ -42,10 +42,9 @@ function dateInSP(offsetDays = 0): string {
 }
 
 const STATUS_RULES: { match: string; bg: string; color: string; label: string }[] = [
-  { match: "BAIXAD",     bg: "#f0fdf4", color: "#166534", label: "Baixado" },
-  { match: "ABERTO",     bg: "#e0f2fe", color: "#0369a1", label: "Aguardando" },
-  { match: "REAGEND",    bg: "#fef9c3", color: "#854d0e", label: "Reagendado" },
-  { match: "COMPARECEU", bg: "#fef2f2", color: "#b91c1c", label: "Não veio" },
+  { match: "BAIXAD",     bg: "#f0fdf4", color: "#166534", label: "Gerou OS" },
+  { match: "ABERTO",     bg: "#e0f2fe", color: "#0369a1", label: "Aberto" },
+  { match: "COMPARECEU", bg: "#fef2f2", color: "#b91c1c", label: "Não Compareceu" },
   { match: "CANCEL",     bg: "#fef2f2", color: "#b91c1c", label: "Cancelado" },
 ];
 
@@ -57,6 +56,23 @@ function badge(status: string) {
       padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700,
       background: s.bg, color: s.color,
     }}>{s.label}</span>
+  );
+}
+
+// Cores por tipo de agendamento — mostra o valor EXATO vindo da API (sem forçar binário).
+const TIPO_AGENDAMENTO_COLORS: Record<string, { bg: string; color: string }> = {
+  ATIVO:     { bg: "#f3e8ff", color: "#7c3aed" },
+  RECEPTIVO: { bg: "#e0f2fe", color: "#0369a1" },
+  PASSANTE:  { bg: "#fef9c3", color: "#854d0e" },
+};
+
+function tipoAgendamentoBadge(v: string) {
+  const up = (v ?? "").toUpperCase().trim();
+  const c = TIPO_AGENDAMENTO_COLORS[up] ?? { bg: "#f1f5f9", color: "#64748b" };
+  return (
+    <span style={{ padding: "2px 8px", borderRadius: 20, fontSize: 10, fontWeight: 700, background: c.bg, color: c.color, whiteSpace: "nowrap" }}>
+      {v || "—"}
+    </span>
   );
 }
 
@@ -117,9 +133,8 @@ export default function HojePanel({ store }: Props) {
   const sit = (a: Agendamento) => (a.Situacao ?? "").toUpperCase();
 
   const agendados   = ag.length;
-  const baixados    = ag.filter(a => sit(a).includes("BAIXAD")).length;                       // sucesso
-  const aguardando  = ag.filter(a => sit(a).includes("ABERTO")).length;                       // ainda não chegou
-  const reagendados = ag.filter(a => sit(a).includes("REAGEND")).length;
+  const gerouOS     = ag.filter(a => sit(a).includes("BAIXAD")).length;                       // sucesso
+  const aberto      = ag.filter(a => sit(a).includes("ABERTO")).length;                       // ainda não chegou
   const perdas      = ag.filter(a => sit(a).includes("COMPARECEU") || sit(a).includes("CANCEL")).length;
   const ativos      = ag.filter(a => (a.TipoAgendamento ?? "").toUpperCase().includes("ATIVO")).length;
 
@@ -169,12 +184,11 @@ export default function HojePanel({ store }: Props) {
 
       {/* KPIs */}
       <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-        <KpiCard label="Agendados"     value={agendados}   icon="📅" color="#082F58" />
-        <KpiCard label="Baixados"      value={baixados}    icon="✅" color="#16a34a" />
-        <KpiCard label="Aguardando"    value={aguardando}  icon="⏳" color="#0369a1" />
-        <KpiCard label="Reagendados"   value={reagendados} icon="🔁" color="#d97706" />
-        <KpiCard label="Perdas"        value={perdas}      icon="❌" color="#dc2626" />
-        <KpiCard label="Gerados qual." value={ativos}      icon="📞" color="#7c3aed" />
+        <KpiCard label="Agendados"     value={agendados} icon="📅" color="#082F58" />
+        <KpiCard label="Gerou OS"      value={gerouOS}   icon="✅" color="#16a34a" />
+        <KpiCard label="Aberto"        value={aberto}    icon="⏳" color="#0369a1" />
+        <KpiCard label="Perdas"        value={perdas}    icon="❌" color="#dc2626" />
+        <KpiCard label="Gerados qual." value={ativos}    icon="📞" color="#7c3aed" />
       </div>
 
       {/* Agenda */}
@@ -191,7 +205,7 @@ export default function HojePanel({ store }: Props) {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ background: "#f8fafc" }}>
-                  {["Hora", "Cliente", "Modelo", "Tipo OS", "Status", "Origem", "Consultor"].map(h => (
+                  {["Hora", "Cliente", "Modelo", "Tipo OS", "Status", "Tipo de Agendamento", "Consultor"].map(h => (
                     <th key={h} style={{ padding: "9px 14px", textAlign: "left", fontWeight: 700, color: "#64748b", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", whiteSpace: "nowrap" }}>
                       {h}
                     </th>
@@ -214,13 +228,7 @@ export default function HojePanel({ store }: Props) {
                       <td style={{ padding: "10px 14px", color: "#374151", whiteSpace: "nowrap" }}>{a.TipoOS ?? "—"}</td>
                       <td style={{ padding: "10px 14px" }}>{badge(a.Situacao ?? "")}</td>
                       <td style={{ padding: "10px 14px" }}>
-                        <span style={{
-                          padding: "2px 8px", borderRadius: 20, fontSize: 10, fontWeight: 700,
-                          background: (a.TipoAgendamento ?? "").toUpperCase().includes("ATIVO") ? "#f3e8ff" : "#e0f2fe",
-                          color:      (a.TipoAgendamento ?? "").toUpperCase().includes("ATIVO") ? "#7c3aed" : "#0369a1",
-                        }}>
-                          {(a.TipoAgendamento ?? "RECEPTIVO").toUpperCase().includes("ATIVO") ? "ATIVO" : "RECEPTIVO"}
-                        </span>
+                        {tipoAgendamentoBadge(a.TipoAgendamento ?? "")}
                       </td>
                       <td style={{ padding: "10px 14px", color: "#64748b", fontSize: 12 }}>{a.Consultor ?? "—"}</td>
                     </tr>

@@ -27,6 +27,23 @@ function dateInSP(offsetDays = 0): string {
   return d.toLocaleDateString("en-CA", { timeZone: "America/Campo_Grande" });
 }
 
+// Cores por tipo de agendamento — mostra o valor EXATO vindo da API (sem forçar binário).
+const TIPO_AGENDAMENTO_COLORS: Record<string, { bg: string; color: string }> = {
+  ATIVO:     { bg: "#f3e8ff", color: "#7c3aed" },
+  RECEPTIVO: { bg: "#e0f2fe", color: "#0369a1" },
+  PASSANTE:  { bg: "#fef9c3", color: "#854d0e" },
+};
+
+function tipoAgendamentoBadge(v: string) {
+  const up = (v ?? "").toUpperCase().trim();
+  const c = TIPO_AGENDAMENTO_COLORS[up] ?? { bg: "#f1f5f9", color: "#64748b" };
+  return (
+    <span style={{ padding: "2px 8px", borderRadius: 20, fontSize: 10, fontWeight: 700, background: c.bg, color: c.color, whiteSpace: "nowrap" }}>
+      {v || "—"}
+    </span>
+  );
+}
+
 export default function AmanhaPanel({ store }: Props) {
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,7 +79,6 @@ export default function AmanhaPanel({ store }: Props) {
   );
 
   const ativos     = amanha.filter(a => (a.TipoAgendamento ?? "").toUpperCase().includes("ATIVO")).length;
-  const receptivos = amanha.length - ativos;
 
   return (
     <div>
@@ -100,7 +116,6 @@ export default function AmanhaPanel({ store }: Props) {
         {[
           { label: "Total amanhã", value: amanha.length, color: "#082F58" },
           { label: "Gerados qual.", value: ativos,       color: "#7c3aed" },
-          { label: "Receptivos",   value: receptivos,   color: "#0369a1" },
         ].map(k => (
           <div key={k.label} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "14px 18px", flex: 1 }}>
             <div style={{ fontSize: 26, fontWeight: 800, color: k.color }}>{k.value}</div>
@@ -122,7 +137,7 @@ export default function AmanhaPanel({ store }: Props) {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ background: "#f8fafc" }}>
-                  {["Hora", "Cliente", "Modelo", "Tipo OS", "Origem", "Consultor"].map(h => (
+                  {["Hora", "Cliente", "Modelo", "Tipo OS", "Tipo de Agendamento", "Consultor"].map(h => (
                     <th key={h} style={{ padding: "9px 14px", textAlign: "left", fontWeight: 700, color: "#64748b", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", whiteSpace: "nowrap" }}>
                       {h}
                     </th>
@@ -142,13 +157,7 @@ export default function AmanhaPanel({ store }: Props) {
                     <td style={{ padding: "10px 14px", color: "#374151" }}>{a.Modelo ?? "—"}</td>
                     <td style={{ padding: "10px 14px", color: "#374151" }}>{a.TipoOS ?? "—"}</td>
                     <td style={{ padding: "10px 14px" }}>
-                      <span style={{
-                        padding: "2px 8px", borderRadius: 20, fontSize: 10, fontWeight: 700,
-                        background: (a.TipoAgendamento ?? "").toUpperCase().includes("ATIVO") ? "#f3e8ff" : "#e0f2fe",
-                        color:      (a.TipoAgendamento ?? "").toUpperCase().includes("ATIVO") ? "#7c3aed" : "#0369a1",
-                      }}>
-                        {(a.TipoAgendamento ?? "RECEPTIVO").toUpperCase().includes("ATIVO") ? "ATIVO" : "RECEPTIVO"}
-                      </span>
+                      {tipoAgendamentoBadge(a.TipoAgendamento ?? "")}
                     </td>
                     <td style={{ padding: "10px 14px", color: "#64748b", fontSize: 12 }}>{a.Consultor ?? "—"}</td>
                   </tr>

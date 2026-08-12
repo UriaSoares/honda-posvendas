@@ -263,10 +263,9 @@ function SlideHead({ titulo, sub, n }: { titulo: string; sub: string; n: string 
   );
 }
 const SIT: { m: string; bg: string; c: string; l: string }[] = [
-  { m: "BAIXAD", bg: "#052e16", c: "#4ade80", l: "Baixado" },
-  { m: "ABERTO", bg: "#082f49", c: "#38bdf8", l: "Aguardando" },
-  { m: "REAGEND", bg: "#422006", c: "#fbbf24", l: "Reagendado" },
-  { m: "COMPARECEU", bg: "#450a0a", c: "#f87171", l: "Não veio" },
+  { m: "BAIXAD", bg: "#052e16", c: "#4ade80", l: "Gerou OS" },
+  { m: "ABERTO", bg: "#082f49", c: "#38bdf8", l: "Aberto" },
+  { m: "COMPARECEU", bg: "#450a0a", c: "#f87171", l: "Não Compareceu" },
   { m: "CANCEL", bg: "#450a0a", c: "#f87171", l: "Cancelado" },
 ];
 function Sit({ sit }: { sit: string }) {
