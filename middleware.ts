@@ -25,7 +25,7 @@ export async function middleware(req: NextRequest) {
   try {
     const { payload } = await jwtVerify(token, secret);
 
-    if (payload.mustChangePassword && pathname !== "/change-password") {
+    if (payload.mustChangePassword && pathname !== "/change-password" && !pathname.startsWith("/api/auth/")) {
       const url = req.nextUrl.clone();
       url.pathname = "/change-password";
       return NextResponse.redirect(url);
