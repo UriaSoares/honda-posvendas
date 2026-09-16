@@ -268,3 +268,69 @@ export async function getOrdensServico(): Promise<OrdemServico[]> {
   });
   return (Array.isArray(data) ? data : []).map((r) => mapOS(r as Raw));
 }
+
+export type RawRow = Record<string, unknown>;
+
+export function dateCG(offsetDays = 0): string {
+  const d = new Date(Date.now() + offsetDays * 86400000);
+  return d.toLocaleDateString("en-CA", { timeZone: "America/Campo_Grande" });
+}
+
+export async function getApontamentosRaw(inicio: string, fim: string): Promise<RawRow[]> {
+  const data = await post<unknown[]>({
+    idrelatorioconfiguracao:       342,
+    idrelatorioconsulta:           168,
+    idrelatorioconfiguracaoleiaute: 342,
+    idrelatoriousuarioleiaute:     909,
+    ididioma:                      1,
+    listaempresas:                 ALL_EMPRESAS,
+    filtros: [
+      "MotivoTempoPerdido=null",
+      "ServicoDocumentoTipo=1,2",
+      "PessoaFuncionarioTipoAtuacao=18,7,3,17,2",
+      `Periodoinicial=${inicio}`,
+      `Periodofinal=${fim}`,
+      "TipoApontamento=1,2,3",
+      "SituacaoOS=null",
+      "InserirDisponibilidade=False",
+      "TipoOrdemServicoInterno=null",
+      "Tecnico=null",
+      "SituacaoServicoItem=null",
+      "Cargo=null",
+      "InserirParado=False",
+      "OSTipoRecpecao=null",
+      "OSDesconsiderarItensCortesia=False",
+      "TipoOS=null",
+      "Segmento=null",
+      "NumeroOS=null",
+      "SomenteItensEmCortesia=False",
+    ].join(";"),
+  });
+  return Array.isArray(data) ? (data as RawRow[]) : [];
+}
+
+export async function getOrdensServicoRaw(inicio: string, fim: string): Promise<RawRow[]> {
+  const data = await post<unknown[]>({
+    idrelatorioconfiguracao:       332,
+    idrelatorioconsulta:           165,
+    idrelatorioconfiguracaoleiaute: 332,
+    idrelatoriousuarioleiaute:     911,
+    ididioma:                      1,
+    listaempresas:                 ALL_EMPRESAS,
+    filtros: [
+      "TipoOrdemServico=null",
+      "TipoRecepcao=null",
+      `UltimaPassagem=${dateCG(1)}`,
+      "Segmento=null",
+      "TipoVeiculoOS=1,2",
+      "TipoDeVeiculoMarca=null",
+      "TipoDeVeiculoModelo=null",
+      "TipoOrdemServicoInterno=null",
+      "Modelo=null",
+      "ModeloSistema=null",
+      `DataEmissaoInicial=${inicio}`,
+      `DataEmissaoFinal=${fim}`,
+    ].join(";"),
+  });
+  return Array.isArray(data) ? (data as RawRow[]) : [];
+}
