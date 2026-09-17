@@ -6,7 +6,11 @@ interface PromoSlot { titulo: string; texto: string; imagem: string; upload: boo
 
 const inp: React.CSSProperties = { width: "100%", padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: 7, fontSize: 13, fontFamily: "inherit", outline: "none", boxSizing: "border-box" };
 
+type Loja = "CGR" | "TEM";
+const LOJA_NOME: Record<Loja, string> = { CGR: "Campo Grande", TEM: "Barretos" };
+
 export default function PromoConfig() {
+  const [loja, setLoja] = useState<Loja>("CGR");
   const [slots, setSlots] = useState<PromoSlot[]>([]);
   const [atual, setAtual] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
@@ -14,11 +18,11 @@ export default function PromoConfig() {
   const [busy, setBusy] = useState<number | null>(null);
 
   function load() {
-    fetch("/api/admin/promo").then(r => r.json()).then(d => {
+    fetch(`/api/admin/promo?loja=${loja}`).then(r => r.json()).then(d => {
       setSlots(d.promo?.slots ?? []); setAtual(d.atual ?? null);
     }).catch(() => {});
   }
-  useEffect(load, []);
+  useEffect(load, [loja]);
 
   function patch(i: number, fn: (s: PromoSlot) => void) {
     setSlots(prev => prev.map((s, j) => { if (j !== i) return s; const c = { ...s }; fn(c); return c; }));
@@ -30,7 +34,7 @@ export default function PromoConfig() {
     const dataUrl = await new Promise<string>((res, rej) => {
       const fr = new FileReader(); fr.onload = () => res(String(fr.result)); fr.onerror = rej; fr.readAsDataURL(file);
     });
-    const r = await fetch("/api/admin/promo/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slot: i, dataUrl }) });
+    const r = await fetch("/api/admin/promo/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slot: i, dataUrl, loja }) });
     if (r.ok) { patch(i, s => { s.upload = true; s.imagem = ""; }); setMsg(`✅ Imagem do slot ${i + 1} enviada. Não esqueça de salvar.`); }
     else { const d = await r.json(); setMsg(`❌ ${d.error ?? "Erro no upload"}`); }
     setBusy(null);
@@ -38,7 +42,7 @@ export default function PromoConfig() {
 
   async function save() {
     setSaving(true); setMsg("");
-    const r = await fetch("/api/admin/promo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slots }) });
+    const r = await fetch("/api/admin/promo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slots, loja }) });
     const d = await r.json();
     if (r.ok) { setMsg("✅ Promoções salvas!"); load(); } else setMsg(`❌ ${d.error ?? "Erro ao salvar"}`);
     setSaving(false);
@@ -46,15 +50,25 @@ export default function PromoConfig() {
 
   return (
     <div style={{ maxWidth: 860 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+        {(["CGR", "TEM"] as Loja[]).map(l => (
+          <button key={l} onClick={() => setLoja(l)} style={{
+            padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 700, fontFamily: "inherit", cursor: "pointer",
+            border: `1px solid ${loja === l ? "#082F58" : "#e2e8f0"}`,
+            background: loja === l ? "#082F58" : "#fff", color: loja === l ? "#fff" : "#64748b",
+          }}>{LOJA_NOME[l]}</button>
+        ))}
+      </div>
+
       <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 10, padding: "12px 16px", marginBottom: 16, fontSize: 13, color: "#1e40af", lineHeight: 1.5 }}>
-        📅 Programe até <strong>4 promoções</strong>. O telão exibe <strong>uma por semana</strong>, avançando automaticamente. O título é só pra você identificar — não aparece no telão.
+        📅 Promoções do telão de <strong>{LOJA_NOME[loja]}</strong> — cada loja tem as suas. Programe até <strong>4 promoções</strong>. O telão exibe <strong>uma por semana</strong>, avançando automaticamente. O título é só pra você identificar — não aparece no telão.
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         {[0, 1, 2, 3].map(i => {
           const s = slots[i] ?? { titulo: "", texto: "", imagem: "", upload: false };
           const noAr = atual === i;
-          const src = s.upload ? `/api/display/promo-img/${i}?t=${Date.now()}` : s.imagem;
+          const src = s.upload ? `/api/display/promo-img/${i}?loja=${loja}&t=${Date.now()}` : s.imagem;
           return (
             <div key={i} style={{ background: "#fff", border: `1px solid ${noAr ? "#FBB814" : "#e2e8f0"}`, borderRadius: 12, overflow: "hidden" }}>
               <div style={{ padding: "10px 14px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>

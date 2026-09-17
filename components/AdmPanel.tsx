@@ -6,6 +6,7 @@ import WhatsAppConnect from "@/components/WhatsAppConnect";
 import ManutencaoSync from "@/components/ManutencaoSync";
 import DisplayConfig from "@/components/DisplayConfig";
 import PromoConfig from "@/components/PromoConfig";
+import PromoAtacadoConfig from "@/components/PromoAtacadoConfig";
 
 interface User { email: string; name: string; role: Role }
 interface Props { user: User }
@@ -41,7 +42,7 @@ function LojaCheckboxes({ value, onChange }: { value: Loja[]; onChange: (v: Loja
 }
 
 export default function AdmPanel({ user }: Props) {
-  const [tab, setTab] = useState<"users" | "promo" | "whatsapp" | "manutencao" | "telao">("users");
+  const [tab, setTab] = useState<"users" | "promo" | "atacado" | "whatsapp" | "manutencao" | "telao">("users");
   const isAdmin = user.role === "admin";
 
   // Users list
@@ -121,7 +122,7 @@ export default function AdmPanel({ user }: Props) {
     setESaving(false);
   }
 
-  const tabBtn = (id: "users" | "promo" | "whatsapp" | "manutencao" | "telao", label: string) => (
+  const tabBtn = (id: "users" | "promo" | "atacado" | "whatsapp" | "manutencao" | "telao", label: string) => (
     <button
       onClick={() => setTab(id)}
       style={{
@@ -143,7 +144,8 @@ export default function AdmPanel({ user }: Props) {
 
       <div style={{ display: "flex", gap: 4, marginBottom: 20, background: "#f1f5f9", borderRadius: 9, padding: 4, width: "fit-content" }}>
         {tabBtn("users", "👥 Usuários")}
-        {tabBtn("promo", "📢 Promoção da semana")}
+        {tabBtn("promo", "📢 Promoção do telão")}
+        {tabBtn("atacado", "🏭 Promoção do atacado")}
         {tabBtn("whatsapp", "💬 WhatsApp")}
         {tabBtn("manutencao", "🔧 Manutenção")}
         {tabBtn("telao", "📺 Telão")}
@@ -325,6 +327,7 @@ export default function AdmPanel({ user }: Props) {
 
       {/* ── PROMO ── */}
       {tab === "promo" && <PromoConfig />}
+      {tab === "atacado" && <PromoAtacadoConfig />}
     </div>
   );
 }

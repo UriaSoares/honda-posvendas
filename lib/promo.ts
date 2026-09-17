@@ -1,23 +1,30 @@
 import { redis } from "@/lib/redis";
+import type { Loja } from "@/lib/auth/users";
 
-// Promoções do telão — até 4 slots, com rotação automática semanal.
-// Config em pos:promo; imagens enviadas por upload ficam em pos:promo:img:{i}.
+// Promoções do telão — até 4 slots POR LOJA, com rotação automática semanal.
+// Config em pos:promo:{loja}; imagens em pos:promo:img:{loja}:{i}.
+// As chaves antigas (pos:promo e pos:promo:img:{i}) valem como herança para as
+// duas lojas enquanto a loja não tiver config própria — assim o que já estava
+// no ar não some quando essa separação entra.
 
 export interface PromoSlot {
   titulo: string;   // rótulo para o gestor identificar a promoção
   texto: string;    // texto opcional exibido junto
   imagem: string;   // URL externa (quando não for upload)
-  upload: boolean;  // true = imagem enviada, servida por /api/display/promo-img/{i}
+  upload: boolean;  // true = imagem enviada, servida por /api/display/promo-img/{i}?loja=
 }
 export interface PromoConfig { slots: PromoSlot[] }
 
-const KEY = "pos:promo";
-const imgKey = (i: number) => `pos:promo:img:${i}`;
+const KEY        = (loja: Loja) => `pos:promo:${loja}`;
+const KEY_ANTIGA = "pos:promo";
+const imgKey        = (loja: Loja, i: number) => `pos:promo:img:${loja}:${i}`;
+const imgKeyAntiga  = (i: number) => `pos:promo:img:${i}`;
 
 function emptySlot(): PromoSlot { return { titulo: "", texto: "", imagem: "", upload: false }; }
 
-export async function getPromo(): Promise<PromoConfig> {
-  const raw = await redis.get<Record<string, unknown>>(KEY);
+export async function getPromo(loja: Loja): Promise<PromoConfig> {
+  const raw = (await redis.get<Record<string, unknown>>(KEY(loja)))
+           ?? (await redis.get<Record<string, unknown>>(KEY_ANTIGA));
   if (raw && Array.isArray(raw.slots)) return { slots: raw.slots as PromoSlot[] };
   // migração do formato antigo { title, body }
   const slots = [emptySlot(), emptySlot(), emptySlot(), emptySlot()];
@@ -27,14 +34,14 @@ export async function getPromo(): Promise<PromoConfig> {
   return { slots };
 }
 
-export async function savePromo(cfg: PromoConfig): Promise<void> {
-  await redis.set(KEY, cfg);
+export async function savePromo(loja: Loja, cfg: PromoConfig): Promise<void> {
+  await redis.set(KEY(loja), cfg);
 }
-export async function setPromoImg(i: number, dataUrl: string): Promise<void> {
-  await redis.set(imgKey(i), dataUrl);
+export async function setPromoImg(loja: Loja, i: number, dataUrl: string): Promise<void> {
+  await redis.set(imgKey(loja, i), dataUrl);
 }
-export async function getPromoImg(i: number): Promise<string | null> {
-  return redis.get<string>(imgKey(i));
+export async function getPromoImg(loja: Loja, i: number): Promise<string | null> {
+  return (await redis.get<string>(imgKey(loja, i))) ?? (await redis.get<string>(imgKeyAntiga(i)));
 }
 
 /** Índices dos slots preenchidos (com upload, URL ou texto). */

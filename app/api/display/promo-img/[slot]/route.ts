@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPromoImg } from "@/lib/promo";
+import { lojaDaQuery } from "@/lib/loja-param";
 
 // Público — serve a imagem enviada de um slot de promoção.
-export async function GET(_req: NextRequest, ctx: { params: Promise<{ slot: string }> }) {
+export async function GET(req: NextRequest, ctx: { params: Promise<{ slot: string }> }) {
   const { slot } = await ctx.params;
   const i = Number(slot);
   if (isNaN(i) || i < 0 || i > 3) return new NextResponse("Not found", { status: 404 });
 
-  const dataUrl = await getPromoImg(i);
+  const dataUrl = await getPromoImg(lojaDaQuery(req.nextUrl.searchParams.get("loja")), i);
   if (!dataUrl) return new NextResponse("Not found", { status: 404 });
 
   const comma = dataUrl.indexOf(",");

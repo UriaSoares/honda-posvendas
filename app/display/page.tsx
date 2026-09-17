@@ -112,9 +112,9 @@ function SlideTecnicos({ apontamentos, loja }: { apontamentos: Apontamento[]; lo
 }
 
 /* ───────── Slide 3: Promoção (imagem da semana) ───────── */
-function SlidePromo({ slots, atual }: { slots: PromoSlot[]; atual: number | null }) {
+function SlidePromo({ slots, atual, loja }: { slots: PromoSlot[]; atual: number | null; loja: Loja }) {
   const s = atual != null ? slots[atual] : null;
-  const src = s ? (s.upload ? `/api/display/promo-img/${atual}` : s.imagem) : "";
+  const src = s ? (s.upload ? `/api/display/promo-img/${atual}?loja=${loja}` : s.imagem) : "";
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", gap: 20 }}>
       <div style={{ fontSize: 15, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: 3 }}>📢 Promoção da semana</div>
@@ -300,12 +300,12 @@ export default function DisplayPage() {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [rd, rp, rc] = await Promise.all([fetch("/api/display/data"), fetch("/api/admin/promo"), fetch("/api/display/config")]);
+      const [rd, rp, rc] = await Promise.all([fetch("/api/display/data"), fetch(`/api/admin/promo?loja=${loja}`), fetch("/api/display/config")]);
       const [dd, dp, dc] = await Promise.all([rd.json(), rp.json(), rc.json()]);
       setAg(dd.agendamentos ?? []); setAp(dd.apontamentos ?? []); setTransp(dd.transparencia ?? []);
       setPromoSlots(dp.promo?.slots ?? []); setPromoAtual(dp.atual ?? null); setConfig(dc.config ?? null);
     } catch { /* mantém dados antigos */ }
-  }, []);
+  }, [loja]);
 
   const SLIDES = 6;
   // busca de dados
@@ -404,7 +404,7 @@ export default function DisplayPage() {
       <div style={{ flex: 1, padding: "28px 36px", overflow: "hidden" }}>
         {slide === 0 && <SlideAgenda agendamentos={ag} loja={loja} />}
         {slide === 1 && <SlideTecnicos apontamentos={ap} loja={loja} />}
-        {slide === 2 && <SlidePromo slots={promoSlots} atual={promoAtual} />}
+        {slide === 2 && <SlidePromo slots={promoSlots} atual={promoAtual} loja={loja} />}
         {slide === 3 && <SlideEquipe equipe={eq} loja={loja} />}
         {slide === 4 && info && <SlideInfo horarios={config!.horarios} info={info} />}
         {slide === 5 && <SlidePrecos itens={transp} />}
