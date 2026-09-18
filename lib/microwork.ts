@@ -334,3 +334,15 @@ export async function getOrdensServicoRaw(inicio: string, fim: string): Promise<
   });
   return Array.isArray(data) ? (data as RawRow[]) : [];
 }
+
+/** Chamada genérica de relatório — empresas e idioma já preenchidos. */
+export async function postRelatorio(body: {
+  idrelatorioconfiguracao: number;
+  idrelatorioconsulta: number;
+  idrelatorioconfiguracaoleiaute: number;
+  idrelatoriousuarioleiaute: number;
+  filtros: string;
+}): Promise<RawRow[]> {
+  const data = await post<unknown[]>({ ...body, ididioma: 1, listaempresas: ALL_EMPRESAS });
+  return Array.isArray(data) ? (data as RawRow[]) : [];
+}
