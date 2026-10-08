@@ -1,5 +1,6 @@
 {
   "crons": [
-    { "path": "/api/cron/pecas?dias=7", "schedule": "0 6 * * *" }
+    { "path": "/api/cron/pecas?dias=7", "schedule": "0 6 * * *" },
+    { "path": "/api/cron/metas-honda", "schedule": "30 6 * * *" }
   ]
 }
