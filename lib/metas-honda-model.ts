@@ -69,6 +69,50 @@ export function siglaClassificacao(c: string): string {
   return /\[(\w+)\]/.exec(c)?.[1] ?? "";
 }
 
+/* ── Mapeamento dos campos do relatório de compras (Microwork 295) ── */
+
+// Chaves cruas do relatório 295 (conferidas em produção em 08/10/2026):
+// cpfoucnpjfornecedor, codigo, descricaoreduzida (empresa), situacao, dataemissao,
+// fornecedor, codigoitem, datacompra, datarecebimento, descricaoitem, quantidade,
+// quantidaderecebido, valorcompra (= valor UNITÁRIO), valortotalitem (= recebido × unitário),
+// tipodepedido, classificacaopedidodecompra.
+// O resolvedor tenta o nome exato primeiro e cai para padrões se o layout mudar.
+// /api/metas-honda/debug mostra o resultado.
+export type Campo = keyof LinhaCompra | "quantidadeRecebida" | "valorTotal";
+export const normChave = (k: string) => k.toLowerCase().normalize("NFD").replace(/[^a-z0-9]/g, "");
+
+const PADROES: Record<Campo, { exato?: string[]; contem?: string[]; evitar?: string[] }> = {
+  empresa:            { exato: ["empresa", "descricaoreduzida", "siglaempresa"], contem: ["empresa"], evitar: ["id", "cnpj"] },
+  pedido:             { exato: ["codigo", "idpedidocompra", "codigopedido", "numeropedido"], contem: ["pedidocompra"], evitar: ["item", "mercadoria", "fabrica", "fornecedor", "tipo", "situacao", "classifica"] },
+  situacao:           { exato: ["situacao"], contem: ["situacao"], evitar: ["id"] },
+  dataEmissao:        { contem: ["dataemissao", "emissao"] },
+  dataCompra:         { contem: ["datacompra", "datadecompra"] },
+  fornecedor:         { exato: ["fornecedor", "nomefornecedor", "pessoafornecedor"], contem: ["fornecedor", "razaosocial"], evitar: ["cnpj", "cpf", "id", "documento"] },
+  codigoItem:         { exato: ["codigoitem", "codigomercadoria"], contem: ["codigoitem", "codigomercadoria", "referencia"] },
+  descricao:          { exato: ["descricao", "descricaomercadoria", "descricaoitem"], contem: ["descricaomercadoria", "descricaoitem"], evitar: ["tipo", "classifica", "situacao", "empresa", "reduzida"] },
+  quantidade:         { exato: ["quantidade", "quantidadesolicitada", "quantidadepedida"], contem: ["quantidadesolicit", "quantidadepedid"], evitar: ["recebid", "pendente", "valor"] },
+  quantidadeRecebida: { contem: ["quantidaderecebid"] },
+  valorUnitario:      { exato: ["valorcompra", "valorunitario"], contem: ["valorunitario"] },
+  valorTotal:         { contem: ["valortotal"] },
+  tipoPedido:         { exato: ["tipodepedido", "tipopedido"], contem: ["tipodepedido", "tipopedido"], evitar: ["id"] },
+  classificacao:      { exato: ["classificacaopedidodecompra"], contem: ["classifica"] },
+};
+
+export function resolverCampos(chaves: string[]): Partial<Record<Campo, string>> {
+  const out: Partial<Record<Campo, string>> = {};
+  const usadas = new Set<string>();
+  for (const campo of Object.keys(PADROES) as Campo[]) {
+    const p = PADROES[campo];
+    const candidatas = chaves.filter(k => !usadas.has(k));
+    const ok = (k: string) => !(p.evitar ?? []).some(e => normChave(k).includes(e));
+    const achou =
+      candidatas.find(k => (p.exato ?? []).includes(normChave(k))) ??
+      candidatas.find(k => ok(k) && (p.contem ?? []).some(c => normChave(k).includes(c)));
+    if (achou) { out[campo] = achou; usadas.add(achou); }
+  }
+  return out;
+}
+
 /* ── De-para de produtos ── */
 
 export interface RegraDePara {

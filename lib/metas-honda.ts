@@ -1,7 +1,8 @@
 import { redis } from "@/lib/redis";
 import { postRelatorio, type RawRow } from "@/lib/microwork";
 import {
-  agregarMes, DEPARA_PADRAO, INDICADOR_IDS, numeroBR,
+  agregarMes, DEPARA_PADRAO, INDICADOR_IDS, numeroBR, resolverCampos, normChave as norm,
+  type Campo,
   type LinhaCompra, type RealMes, type RegraDePara, type Meta, type Afericao,
   type IndicadorId, type LojaMeta,
 } from "@/lib/metas-honda-model";
@@ -48,44 +49,6 @@ export async function getComprasRaw(inicio: string, fim: string): Promise<RawRow
       "SomenteQuantidadePendente=False",
     ].join(";"),
   });
-}
-
-// As chaves cruas do relatório 295 ainda não foram mapeadas uma a uma (o layout
-// exportado em CSV usa rótulos, a API usa nomes internos). O resolvedor procura a
-// chave por padrão no nome normalizado. /api/metas-honda/debug mostra o resultado.
-type Campo = keyof LinhaCompra | "quantidadeRecebida" | "valorTotal";
-const norm = (k: string) => k.toLowerCase().normalize("NFD").replace(/[^a-z0-9]/g, "");
-
-const PADROES: Record<Campo, { exato?: string[]; contem?: string[]; evitar?: string[] }> = {
-  empresa:            { exato: ["empresa", "descricaoreduzida", "siglaempresa"], contem: ["empresa"], evitar: ["id", "cnpj"] },
-  pedido:             { exato: ["codigo", "idpedidocompra", "codigopedido", "numeropedido"], contem: ["pedidocompra"], evitar: ["item", "mercadoria", "fabrica", "fornecedor", "tipo", "situacao", "classifica"] },
-  situacao:           { exato: ["situacao"], contem: ["situacao"], evitar: ["id"] },
-  dataEmissao:        { contem: ["dataemissao", "emissao"] },
-  dataCompra:         { contem: ["datacompra", "datadecompra"] },
-  fornecedor:         { exato: ["fornecedor", "nomefornecedor", "pessoafornecedor"], contem: ["fornecedor", "razaosocial"], evitar: ["cnpj", "cpf", "id", "documento"] },
-  codigoItem:         { exato: ["codigoitem", "codigomercadoria"], contem: ["codigoitem", "codigomercadoria", "referencia"] },
-  descricao:          { exato: ["descricao", "descricaomercadoria", "descricaoitem"], contem: ["descricaomercadoria", "descricaoitem"], evitar: ["tipo", "classifica", "situacao", "empresa", "reduzida"] },
-  quantidade:         { exato: ["quantidade", "quantidadesolicitada", "quantidadepedida"], contem: ["quantidadesolicit", "quantidadepedid"], evitar: ["recebid", "pendente", "valor"] },
-  quantidadeRecebida: { contem: ["quantidaderecebida"] },
-  valorUnitario:      { contem: ["valorunitario"] },
-  valorTotal:         { contem: ["valortotal"] },
-  tipoPedido:         { exato: ["tipodepedido", "tipopedido"], contem: ["tipodepedido", "tipopedido"], evitar: ["id"] },
-  classificacao:      { contem: ["classificacao", "classifica"], evitar: ["id"] },
-};
-
-export function resolverCampos(chaves: string[]): Partial<Record<Campo, string>> {
-  const out: Partial<Record<Campo, string>> = {};
-  const usadas = new Set<string>();
-  for (const campo of Object.keys(PADROES) as Campo[]) {
-    const p = PADROES[campo];
-    const candidatas = chaves.filter(k => !usadas.has(k));
-    const ok = (k: string) => !(p.evitar ?? []).some(e => norm(k).includes(e));
-    const achou =
-      candidatas.find(k => (p.exato ?? []).includes(norm(k))) ??
-      candidatas.find(k => ok(k) && (p.contem ?? []).some(c => norm(k).includes(c)));
-    if (achou) { out[campo] = achou; usadas.add(achou); }
-  }
-  return out;
 }
 
 const OBRIGATORIOS: Campo[] = ["empresa", "pedido", "dataEmissao", "fornecedor", "codigoItem", "descricao", "quantidade", "valorUnitario", "classificacao"];
