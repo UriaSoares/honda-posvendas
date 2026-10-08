@@ -1,0 +1,12 @@
+indicador,codigo_item,prefixo_item,descricao_contem,fornecedor_contem,conta,fator,grupo,obs
+OLEO_10W30,08233M99024,,,,SIM,1,,10W30 frasco
+OLEO_10W30,08233M99200,,,,SIM,1,,10W30 tambor
+OLEO_10W30,082342FS024,,,,NAO,1,,10W30 Full Synthetic — confirmar se conta
+OLEO_SCOOTER,082332MB024,,,,SIM,1,,Scooter 10W30 frasco
+OLEO_20W50,08233LUB205,,,,SIM,1,,20W50 frasco
+KIT_LUB,06155LUB015,,,,SIM,1,,Kit Pro Honda corrente
+KIT_LUB,1000 019 321,,,,NAO,1,,Kit Staff N321 — não conta
+PNEU,,,PNEU,VEIPECAS,NAO,1,,Veipeças não conta
+PNEU,,,PNEU,,SIM,1,,
+BATERIA,,31500,,,SIM,1,,
+BATERIA,,R315,,,SIM,1,,

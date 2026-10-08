@@ -106,6 +106,28 @@ Isso é o que estava sendo trabalhado por último. Contexto: WhatsApp em modo **
 
 ---
 
+## 🎯 Metas Honda (aba "Metas Honda")
+
+Espelha os 13 cards do Tableau "KPI After Sales" e calcula sozinho os indicadores de compra.
+
+| Indicador | Regra | Fonte |
+|---|---|---|
+| Compra de Peças (PV) — card "PAV" no Tableau | Moto Honda da Amazônia, só **ZREP + ZURB**, qtd solicitada × valor unitário, mês da **data de emissão** | Microwork, auto |
+| Óleo 10W30 / Scooter / 20W50 | itens Pro Honda, em **litros**, qualquer distribuidor (Cosan, Iconic), mês da **data de compra** | Microwork, auto |
+| Kit Lub, Pneu, Bateria | conforme o de-para, em unidades, data de compra | Microwork, auto |
+| TSI, Passagens, Campanhas, Leads, SLA, Faturamento | por enquanto o real é o último número lançado da Honda | manual |
+
+- Validação: PV CGR jan–set/2026 bateu em -0,09% no acumulado vs IHS; 10W30 out/2026 bateu exato (CGR 200 L, TEM 240 L).
+- ⚠️ "PAV" no Microwork = Pedido Avulso, que **não** conta no PV. No Tableau, "PAV" = compra de peças.
+- A Honda mostra óleo/pneu/bateria com **1 dia de atraso** (`defasagem` em `INDICADORES`): a aferição compara com o interno até D-1.
+- **Código:** `lib/metas-honda-model.ts` (puro: regras, de-para padrão, agregação), `lib/metas-honda.ts` (Microwork relatório 295, Sheets, Redis), `lib/metas-honda-seed.ts` (metas padrão), `components/MetasHondaPanel.tsx`.
+- **Sync:** cron `/api/cron/metas-honda` às 06:30 UTC (02:30 CG) recalcula o mês atual e o anterior **do zero** (sem upsert). Botão "Sincronizar agora" (admin/gestão) → `POST /api/metas-honda/sync` (body `{mes}` recalcula um mês fechado).
+- **Redis:** `pos:metas:real:AAAA-MM` (agregado), `pos:metas:afericao:AAAA-MM`, `pos:metas:metas`, `pos:metas:depara`, `pos:metas:sheets-meta`.
+- **Sheets (opcional):** `SHEET_METAS_DEPARA_URL` e `SHEET_METAS_URL` (CSV publicado). Modelos em `docs/metas-honda/`. Sem as envs, usa o de-para e as metas do código.
+- **Mapeamento dos campos do relatório 295:** feito por padrão de nome (`resolverCampos`). Conferir no primeiro deploy em `/api/metas-honda/debug` (admin).
+
+---
+
 ## Variáveis de ambiente (Vercel)
 
 ```
@@ -122,6 +144,8 @@ WHATSAPP_SYSTEM_TOKEN                   — token da Cloud API (⚠️ hoje é t
 WHATSAPP_VERIFY_TOKEN                   — "caioba-verify-2026", usado no handshake do webhook
 
 NEXT_PUBLIC_TURNSTILE_SITE_KEY / TURNSTILE_SECRET_KEY — captcha do login
+CRON_SECRET                             — autoriza os crons (/api/cron/*)
+SHEET_METAS_DEPARA_URL / SHEET_METAS_URL — (opcional) CSVs do de-para e das metas Honda
 ```
 
 ---
