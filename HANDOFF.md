@@ -108,14 +108,17 @@ Isso é o que estava sendo trabalhado por último. Contexto: WhatsApp em modo **
 
 ## 🎯 Metas Honda (aba "Metas Honda")
 
-Espelha os 13 cards do Tableau "KPI After Sales" e calcula sozinho os indicadores de compra.
+Espelha os cards do Tableau "KPI After Sales" e calcula sozinho os indicadores de compra.
 
 | Indicador | Regra | Fonte |
 |---|---|---|
 | Compra de Peças (PV) — card "PAV" no Tableau | Moto Honda da Amazônia, só **ZREP + ZURB**, qtd solicitada × valor unitário, mês da **data de emissão** | Microwork, auto |
 | Óleo 10W30 / Scooter / 20W50 | itens Pro Honda, em **litros**, qualquer distribuidor (Cosan, Iconic), mês da **data de compra** | Microwork, auto |
 | Kit Lub, Pneu, Bateria | conforme o de-para, em unidades, data de compra | Microwork, auto |
-| TSI, Passagens, Campanhas, Leads, SLA, Faturamento | por enquanto o real é o último número lançado da Honda | manual |
+| Passagens | OS distintas abertas no mês (data de emissão), canceladas fora, quebra por tipo de OS — **regra a calibrar** com o Tableau | Microwork relatório 190, auto |
+| TSI, Faturamento | o real é o último número lançado da Honda | manual |
+
+Campanhas, Leads e SLA foram retirados (o Salesforce não exporta). TSI virá de uma planilha que está sendo reorganizada.
 
 - Validação: PV CGR jan–set/2026 bateu em -0,09% no acumulado vs IHS; 10W30 out/2026 bateu exato (CGR 200 L, TEM 240 L).
 - ⚠️ "PAV" no Microwork = Pedido Avulso, que **não** conta no PV. No Tableau, "PAV" = compra de peças.
@@ -124,7 +127,7 @@ Espelha os 13 cards do Tableau "KPI After Sales" e calcula sozinho os indicadore
 - **Sync:** cron `/api/cron/metas-honda` às 06:30 UTC (02:30 CG) recalcula o mês atual e o anterior **do zero** (sem upsert). Botão "Sincronizar agora" (admin/gestão) → `POST /api/metas-honda/sync` (body `{mes}` recalcula um mês fechado).
 - **Redis:** `pos:metas:real:AAAA-MM` (agregado), `pos:metas:afericao:AAAA-MM`, `pos:metas:metas`, `pos:metas:depara`, `pos:metas:sheets-meta`.
 - **Sheets (opcional):** `SHEET_METAS_DEPARA_URL` e `SHEET_METAS_URL` (CSV publicado). Modelos em `docs/metas-honda/`. Sem as envs, usa o de-para e as metas do código.
-- **Mapeamento dos campos do relatório 295:** feito por padrão de nome (`resolverCampos`). Conferir no primeiro deploy em `/api/metas-honda/debug` (admin).
+- **Mapeamento dos campos:** compras (295) conferido em produção; OS (190) por padrão de nome, ainda não conferido. Diagnóstico (admin): `/api/metas-honda/debug` e `/api/metas-honda/debug?fonte=os`. Se o relatório de OS falhar, o sync das compras segue e o erro aparece em "Avisos da sincronização".
 
 ---
 

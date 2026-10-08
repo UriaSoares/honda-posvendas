@@ -106,7 +106,8 @@ export default function MetasHondaPanel({ store, role }: Props) {
       const r = await fetch("/api/metas-honda/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? "Falha na sincronização");
-      setAviso(`Sincronizado: ${d.linhas} linhas de compra (${(d.meses ?? []).join(", ")}).${d.sheets?.erros?.length ? " Avisos: " + d.sheets.erros.join(" ") : ""}`);
+      const extras = [...(d.sheets?.erros ?? []), ...(d.avisos ?? [])];
+      setAviso(`Sincronizado: ${d.linhas} linhas de compra e ${d.os ?? 0} linhas de OS (${(d.meses ?? []).join(", ")}).${extras.length ? " Avisos: " + extras.join(" ") : ""}`);
       await carregar(mes);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro desconhecido");
@@ -162,6 +163,7 @@ export default function MetasHondaPanel({ store, role }: Props) {
   const detalhe = linhas.find(l => l.def.id === sel);
   const afsDetalhe = (data?.afericoes ?? []).filter(a => a.loja === store && a.indicador === sel).sort((a, b) => b.data.localeCompare(a.data));
   const naoMap = (data?.real?.naoMapeados ?? []).filter(n => n.loja === store);
+  const avisos = data?.real?.avisos ?? [];
 
   return (
     <div>
@@ -229,13 +231,16 @@ export default function MetasHondaPanel({ store, role }: Props) {
               <div style={{ fontSize: 11, color: "#64748b", marginBottom: 12 }}>{REGRA[detalhe.def.id]}</div>
               {detalhe.def.automatico && detalhe.agregado ? (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 16 }}>
-                  <Quebra titulo={detalhe.def.id === "PV" ? "Conta na meta (tipo de pedido)" : "Conta na meta"} dados={detalhe.agregado.porGrupo} u={detalhe.def.unidade} cor="#16a34a" />
-                  <Quebra titulo={detalhe.def.id === "PV" ? "Comprado e fora da meta" : "Comprado e não conta"} dados={detalhe.agregado.foraPorGrupo} u={detalhe.def.unidade} cor="#94a3b8" />
+                  <Quebra titulo={detalhe.def.id === "PV" ? "Conta na meta (tipo de pedido)" : detalhe.def.id === "PASSAGENS" ? "OS por tipo" : "Conta na meta"} dados={detalhe.agregado.porGrupo} u={detalhe.def.unidade} cor="#16a34a" />
+                  <Quebra titulo={detalhe.def.id === "PV" ? "Comprado e fora da meta" : detalhe.def.id === "PASSAGENS" ? "Canceladas" : "Comprado e não conta"} dados={detalhe.agregado.foraPorGrupo} u={detalhe.def.unidade} cor="#94a3b8" />
                 </div>
               ) : detalhe.def.automatico ? (
                 <div style={{ fontSize: 13, color: "#94a3b8" }}>Nenhuma compra deste indicador no mês.</div>
               ) : (
                 <div style={{ fontSize: 13, color: "#64748b" }}>Indicador ainda manual: o real é o último número lançado da Honda.</div>
+              )}
+              {detalhe.def.id === "PASSAGENS" && detalhe.agregado?.veiculos != null && (
+                <div style={{ fontSize: 12, color: "#475569", marginTop: 10 }}>{detalhe.agregado.veiculos} veículos distintos (chassi/placa) nessas OS.</div>
               )}
               {detalhe.def.id === "PV" && detalhe.agregado?.pedidos != null && (
                 <div style={{ fontSize: 12, color: "#475569", marginTop: 10 }}>{detalhe.agregado.pedidos} pedidos ZREP/ZURB no mês.</div>
@@ -307,6 +312,13 @@ export default function MetasHondaPanel({ store, role }: Props) {
             <button type="submit" style={{ ...btnPri, width: "100%", marginTop: 6 }}>Lançar para {store}</button>
           </form>
 
+          {avisos.length > 0 && (
+            <div style={{ ...card, padding: 16, borderColor: "#fecaca", background: "#fef2f2" }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "#b91c1c", marginBottom: 6 }}>Avisos da sincronização</div>
+              {avisos.map((a, i) => <div key={i} style={{ fontSize: 11, color: "#991b1b", wordBreak: "break-word" }}>{a}</div>)}
+            </div>
+          )}
+
           {naoMap.length > 0 && (
             <div style={{ ...card, padding: 16, borderColor: "#fde68a", background: "#fffbeb" }}>
               <div style={{ fontSize: 13, fontWeight: 800, color: "#92400e", marginBottom: 6 }}>Itens sem de-para</div>
@@ -339,10 +351,7 @@ const REGRA: Record<IndicadorId, string> = {
   PNEU:         "Pneus de revenda (Pirelli, Levorin, Honda) · Veipeças não conta · mês da data de compra.",
   BATERIA:      "Baterias Honda (31500…, R315…) · mês da data de compra.",
   TSI: "Pesquisa de satisfação — lançar a nota do Tableau.",
-  PASSAGENS: "Passagens na oficina — lançar o número do Tableau (integração com OS em breve).",
-  CAMPANHAS: "Campanhas executadas — lançar o número do Tableau.",
-  LEADS: "Leads — lançar o número do Tableau.",
-  SLA: "Leads respondidos em até 5 minutos — lançar o % do Tableau.",
+  PASSAGENS: "OS distintas abertas no mês (data de emissão), por tipo de OS · OS canceladas ficam fora. Regra a calibrar com as aferições do Tableau.",
   FATURAMENTO: "Faturamento de pós-venda — lançar o número do Tableau.",
 };
 

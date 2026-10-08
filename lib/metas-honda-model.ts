@@ -17,7 +17,7 @@ export type LojaMeta = "CGR" | "TEM";
 export const LOJAS_META: LojaMeta[] = ["CGR", "TEM"];
 
 export type IndicadorId =
-  | "TSI" | "PASSAGENS" | "CAMPANHAS" | "LEADS" | "SLA" | "FATURAMENTO"
+  | "TSI" | "PASSAGENS" | "FATURAMENTO"
   | "PV" | "PNEU" | "OLEO_10W30" | "OLEO_SCOOTER" | "OLEO_20W50" | "KIT_LUB" | "BATERIA";
 
 export interface IndicadorDef {
@@ -30,13 +30,10 @@ export interface IndicadorDef {
   defasagem?: number;
 }
 
-/** Mesma ordem dos cards do Tableau. */
+/** Mesma ordem dos cards do Tableau (Campanhas, Leads e SLA ficam de fora: Salesforce não exporta). */
 export const INDICADORES: IndicadorDef[] = [
   { id: "TSI",          nome: "TSI",            unidade: "nota", automatico: false },
-  { id: "PASSAGENS",    nome: "Passagens",      unidade: "qtd",  automatico: false },
-  { id: "CAMPANHAS",    nome: "Campanhas",      unidade: "qtd",  automatico: false },
-  { id: "LEADS",        nome: "Leads",          unidade: "qtd",  automatico: false },
-  { id: "SLA",          nome: "SLA 0–5 min",    unidade: "%",    automatico: false },
+  { id: "PASSAGENS",    nome: "Passagens",      unidade: "qtd",  automatico: true },
   { id: "FATURAMENTO",  nome: "Faturamento",    unidade: "R$",   automatico: false },
   { id: "PV",           nome: "Compra de Peças (PV)", unidade: "R$", automatico: true },
   { id: "PNEU",         nome: "Pneu",           unidade: "un",   automatico: true, defasagem: 1 },
@@ -98,11 +95,17 @@ const PADROES: Record<Campo, { exato?: string[]; contem?: string[]; evitar?: str
   classificacao:      { exato: ["classificacaopedidodecompra"], contem: ["classifica"] },
 };
 
+type Padroes<C extends string> = Record<C, { exato?: string[]; contem?: string[]; evitar?: string[] }>;
+
 export function resolverCampos(chaves: string[]): Partial<Record<Campo, string>> {
-  const out: Partial<Record<Campo, string>> = {};
+  return resolverPorPadroes(chaves, PADROES);
+}
+
+function resolverPorPadroes<C extends string>(chaves: string[], padroes: Padroes<C>): Partial<Record<C, string>> {
+  const out: Partial<Record<C, string>> = {};
   const usadas = new Set<string>();
-  for (const campo of Object.keys(PADROES) as Campo[]) {
-    const p = PADROES[campo];
+  for (const campo of Object.keys(padroes) as C[]) {
+    const p = padroes[campo];
     const candidatas = chaves.filter(k => !usadas.has(k));
     const ok = (k: string) => !(p.evitar ?? []).some(e => normChave(k).includes(e));
     const achou =
@@ -182,6 +185,7 @@ export function grupoDe(l: LinhaCompra, r: RegraDePara | null): string {
 export interface Agregado {
   total:       number;                   // o que conta na meta
   pedidos?:    number;                   // só PV
+  veiculos?:   number;                   // só Passagens: chassis/placas distintos
   porGrupo:    Record<string, number>;   // conta, por marca/fornecedor
   foraPorGrupo: Record<string, number>;  // comprado mas não conta
   porDia:      Record<string, number>;   // "DD" → total do dia (conta)
@@ -192,6 +196,7 @@ export interface RealMes {
   atualizadoEm: string;                  // ISO
   linhas:       number;
   lojas:        Record<LojaMeta, Partial<Record<IndicadorId, Agregado>>>;
+  avisos?:      string[];                // falhas parciais (ex.: relatório de OS fora do ar)
   naoMapeados:  { loja: string; codigoItem: string; descricao: string; fornecedor: string; quantidade: number }[];
 }
 
@@ -274,6 +279,64 @@ export function agregarMes(linhas: LinhaCompra[], mes: string, regras: RegraDePa
     mes, atualizadoEm: new Date().toISOString(), linhas: linhas.length, lojas,
     naoMapeados: [...naoMap.values()].sort((a, b) => b.quantidade - a.quantidade),
   };
+}
+
+/* ── Passagens (Microwork relatório 190 — OS da oficina) ── */
+
+export interface LinhaOS {
+  empresa:     string;
+  numeroOS:    string;
+  dataEmissao: string;   // AAAA-MM-DD
+  tipoOS:      string;
+  situacao:    string;
+  veiculo:     string;   // chassi ou placa
+}
+export type CampoOS = keyof LinhaOS;
+
+// Chaves ainda não conferidas em produção — /api/metas-honda/debug?fonte=os mostra o mapeamento.
+const PADROES_OS: Padroes<CampoOS> = {
+  empresa:     { exato: ["descricaoreduzida", "empresa", "siglaempresa"], contem: ["empresa"], evitar: ["cnpj", "idempresa"] },
+  numeroOS:    { exato: ["numeroos", "numero", "os", "numeroordemservico", "codigoos", "idordemservico"], contem: ["numeroos", "ordemservico"], evitar: ["tipo", "situacao", "item", "interno"] },
+  dataEmissao: { exato: ["dataemissao", "dataemissaoos"], contem: ["dataemissao", "emissao", "dataabertura"] },
+  tipoOS:      { exato: ["tipoos", "tipodeordemdeservico", "tipoordemservico"], contem: ["tipoos", "tipodeordem", "tipoordem"], evitar: ["interno", "item", "veiculo"] },
+  situacao:    { exato: ["ossituacao", "situacaoos", "situacao", "ospassagemsituacao"], contem: ["situacao"], evitar: ["item", "nf", "servico"] },
+  veiculo:     { exato: ["chassi", "placa"], contem: ["chassi", "placa"] },
+};
+export function resolverCamposOS(chaves: string[]): Partial<Record<CampoOS, string>> {
+  return resolverPorPadroes(chaves, PADROES_OS);
+}
+
+/**
+ * Passagens = OS distintas abertas no mês (data de emissão), por loja.
+ * O relatório traz uma linha por item da OS; aqui conta o número da OS uma vez.
+ * Quebra por tipo de OS para calibrar contra o Tableau (ex.: se a Honda não conta OS interna).
+ */
+export function agregarPassagens(linhas: LinhaOS[], mes: string): Partial<Record<LojaMeta, Agregado>> {
+  const out: Partial<Record<LojaMeta, Agregado>> = {};
+  const vistos: Record<LojaMeta, Map<string, LinhaOS>> = { CGR: new Map(), TEM: new Map() };
+  for (const l of linhas) {
+    const loja = up(l.empresa) as LojaMeta;
+    if ((loja !== "CGR" && loja !== "TEM") || !l.numeroOS || !l.dataEmissao.startsWith(mes)) continue;
+    if (!vistos[loja].has(l.numeroOS)) vistos[loja].set(l.numeroOS, l);
+  }
+  for (const loja of LOJAS_META) {
+    const os = [...vistos[loja].values()];
+    if (!os.length) continue;
+    const a = novo();
+    const veic = new Set<string>();
+    for (const l of os) {
+      if (/CANCEL/i.test(l.situacao)) { const g = up(l.tipoOS) || "SEM TIPO"; a.foraPorGrupo[g] = (a.foraPorGrupo[g] ?? 0) + 1; continue; }
+      a.total += 1;
+      const g = up(l.tipoOS) || "SEM TIPO";
+      a.porGrupo[g] = (a.porGrupo[g] ?? 0) + 1;
+      const dd = l.dataEmissao.slice(8, 10);
+      a.porDia[dd] = (a.porDia[dd] ?? 0) + 1;
+      if (l.veiculo) veic.add(up(l.veiculo));
+    }
+    a.veiculos = veic.size;
+    out[loja] = a;
+  }
+  return out;
 }
 
 /** Total acumulado até o dia DD (inclusive) — para comparar com a aferição daquele dia. */

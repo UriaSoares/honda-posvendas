@@ -1,7 +1,8 @@
 import { redis } from "@/lib/redis";
 import { postRelatorio, type RawRow } from "@/lib/microwork";
 import {
-  agregarMes, DEPARA_PADRAO, INDICADOR_IDS, numeroBR, resolverCampos, normChave as norm,
+  agregarMes, agregarPassagens, resolverCamposOS, DEPARA_PADRAO, INDICADOR_IDS, numeroBR, resolverCampos, normChave as norm,
+  type LinhaOS,
   type Campo,
   type LinhaCompra, type RealMes, type RegraDePara, type Meta, type Afericao,
   type IndicadorId, type LojaMeta,
@@ -91,6 +92,86 @@ export function normalizarLinhas(raw: RawRow[]): LinhaCompra[] {
     tipoPedido:    s(g(r, "tipoPedido")),
     classificacao: s(g(r, "classificacao")),
   }));
+}
+
+/* ── Microwork: relatório de OS (passagens) ── */
+
+export async function getOSRaw(inicio: string, fim: string): Promise<RawRow[]> {
+  return postRelatorio({
+    idrelatorioconfiguracao:        190,
+    idrelatorioconsulta:            95,
+    idrelatorioconfiguracaoleiaute: 190,
+    idrelatoriousuarioleiaute:      956,
+    filtros: [
+      "SomenteMercadoriaOriginalFabrica=False",
+      "ConsiderarTecnico=True",
+      "SituacaoConcluidaNF=null",
+      "VeiculoCliente=null",
+      `Periododeemissaofinal=${fim}`,
+      `Periododeemissaoinicial=${inicio}`,
+      "Modelo=null",
+      "Tipodeordemdeservico=null",
+      "Consultor=null",
+      "Tiposervico=null",
+      "Tecnico=null",
+      "NumeroOS=null",
+      "Segmento=null",
+      "OSSituacao=null",
+      "ItensServicosCancelados=False",
+      "Municipio=null",
+      "NaoIncluirPessoa=null",
+      "TipoRecepcao=null",
+      "EstadoVeiculo=null",
+      "TipoOrdemServicoInterno=null",
+      "TipoBaixaDocumento=null",
+      "NomeEmissaoDocumento=null",
+      "TipoVeiculoOS=1,2",
+      "Pessoa=null",
+      "Tipoitem=1,2",
+      "TipoDeVeiculoModelo=null",
+      "GrupoDoModelo=null",
+      "NumeroContratoFrotista=",
+      "EquipeAtendimentoFrotista=null",
+      "SomenteManutencaoFrotista=False",
+      "FontePagadora=null",
+      "NumeroColeta=",
+    ].join(";"),
+  });
+}
+
+const OBRIGATORIOS_OS = ["empresa", "numeroOS", "dataEmissao"] as const;
+
+export function normalizarOS(raw: RawRow[]): LinhaOS[] {
+  if (!raw.length) return [];
+  const c = resolverCamposOS(Object.keys(raw[0]));
+  const faltando = OBRIGATORIOS_OS.filter(f => !c[f]);
+  if (faltando.length)
+    throw new Error(`Relatório de OS: não achei os campos ${faltando.join(", ")}. Chaves recebidas: ${Object.keys(raw[0]).join(", ")}`);
+  const g = (r: RawRow, f: keyof LinhaOS) => (c[f] ? r[c[f]!] : undefined);
+  return raw.map(r => ({
+    empresa:     s(g(r, "empresa")).toUpperCase(),
+    numeroOS:    s(g(r, "numeroOS")).replace(/[[\]]/g, ""),
+    dataEmissao: dataISO(g(r, "dataEmissao")),
+    tipoOS:      s(g(r, "tipoOS")),
+    situacao:    s(g(r, "situacao")),
+    veiculo:     s(g(r, "veiculo")),
+  })).filter(l => l.empresa === "CGR" || l.empresa === "TEM");
+}
+
+/** Passagens de vários meses; erro vira aviso para não derrubar o sync das compras. */
+async function passagensPorMes(meses: string[], inicio: string, fim: string): Promise<{ porMes: Map<string, ReturnType<typeof agregarPassagens>>; aviso?: string; linhas: number }> {
+  try {
+    const linhas = normalizarOS(await getOSRaw(inicio, fim));
+    return { porMes: new Map(meses.map(m => [m, agregarPassagens(linhas, m)])), linhas: linhas.length };
+  } catch (e) {
+    return { porMes: new Map(), aviso: `Passagens: ${String(e)}`, linhas: 0 };
+  }
+}
+
+function juntar(real: RealMes, pas: ReturnType<typeof agregarPassagens> | undefined, aviso?: string): RealMes {
+  for (const loja of ["CGR", "TEM"] as const) if (pas?.[loja]) real.lojas[loja].PASSAGENS = pas[loja];
+  if (aviso) real.avisos = [...(real.avisos ?? []), aviso];
+  return real;
 }
 
 /* ── Datas (fuso de Campo Grande) ── */
@@ -217,23 +298,31 @@ export async function lerSheetsMeta(): Promise<SheetsMeta | null> {
  * desde 2 meses antes do mais antigo, porque óleo é contado pela DATA DE COMPRA,
  * que pode cair semanas depois da emissão.
  */
-export async function sincronizarReal(meses = 2): Promise<{ meses: string[]; linhas: number }> {
+export async function sincronizarReal(meses = 2): Promise<{ meses: string[]; linhas: number; os: number; avisos: string[] }> {
   const atual = mesAtual();
   const lista = Array.from({ length: meses }, (_, i) => somaMes(atual, -i));
   const inicio = `${somaMes(lista[lista.length - 1], -2)}-01`;
-  const raw = await getComprasRaw(inicio, hojeCG());
+  const hoje = hojeCG();
+  const [raw, pas] = await Promise.all([
+    getComprasRaw(inicio, hoje),
+    passagensPorMes(lista, `${lista[lista.length - 1]}-01`, hoje),
+  ]);
   const linhas = normalizarLinhas(raw).filter(l => l.empresa === "CGR" || l.empresa === "TEM");
   const regras = await lerDePara();
-  for (const mes of lista) await redis.set(K.real(mes), agregarMes(linhas, mes, regras));
-  return { meses: lista, linhas: linhas.length };
+  for (const mes of lista)
+    await redis.set(K.real(mes), juntar(agregarMes(linhas, mes, regras), pas.porMes.get(mes), pas.aviso));
+  return { meses: lista, linhas: linhas.length, os: pas.linhas, avisos: pas.aviso ? [pas.aviso] : [] };
 }
 
 /** Recalcula um mês fechado específico (ex.: carga histórica). */
-export async function sincronizarMes(mes: string): Promise<{ linhas: number }> {
-  const raw = await getComprasRaw(`${somaMes(mes, -2)}-01`, fimDoMes(mes));
+export async function sincronizarMes(mes: string): Promise<{ linhas: number; os: number; avisos: string[] }> {
+  const [raw, pas] = await Promise.all([
+    getComprasRaw(`${somaMes(mes, -2)}-01`, fimDoMes(mes)),
+    passagensPorMes([mes], `${mes}-01`, fimDoMes(mes)),
+  ]);
   const linhas = normalizarLinhas(raw).filter(l => l.empresa === "CGR" || l.empresa === "TEM");
-  await redis.set(K.real(mes), agregarMes(linhas, mes, await lerDePara()));
-  return { linhas: linhas.length };
+  await redis.set(K.real(mes), juntar(agregarMes(linhas, mes, await lerDePara()), pas.porMes.get(mes), pas.aviso));
+  return { linhas: linhas.length, os: pas.linhas, avisos: pas.aviso ? [pas.aviso] : [] };
 }
 
 export async function lerReal(mes: string): Promise<RealMes | null> {
