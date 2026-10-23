@@ -18,7 +18,11 @@ import {
 // as vendas são acumuladas por semana.
 
 const NS = "mapa:pecas";
-const SHARDS = 10;
+
+// 20 fatias, não 10: o snapshot inteiro são ~800 KB e o gargalo medido não foi a
+// API do Microwork (65 s) e sim a gravação no Upstash. Fatia menor grava mais
+// rápido em paralelo.
+const SHARDS = 20;
 const estoqueKey = (n: number) => `${NS}:estoque:${n}`;
 const vendaKey = (semana: string) => `${NS}:venda:${semana}`;
 const cestaKey = (semana: string) => `${NS}:cesta:${semana}`;
@@ -87,9 +91,11 @@ export interface ItemEstoque {
   obsDesde: string | null;
   loc: string;
   trib: string;
-  monofasico: boolean;
-  ncm: string;
 }
+
+// `codigoncm` e `produtomonofasico` não são guardados: só interessam à análise
+// tributária, que está parada, e o estoque inteiro é puxado de novo todo dia —
+// se voltarem a fazer falta, basta acrescentá-los aqui.
 
 export function normalizarEstoque(linhas: RawRow[]): ItemEstoque[] {
   const out: ItemEstoque[] = [];
@@ -111,11 +117,40 @@ export function normalizarEstoque(linhas: RawRow[]): ItemEstoque[] {
       obsDesde: data(l.obsoletodesde),
       loc: s(l.localizacoes),
       trib: s(l.tributacao),
-      monofasico: s(l.produtomonofasico) === "t",
-      ncm: s(l.codigoncm),
     });
   }
   return out;
+}
+
+// Em disco o snapshot vai como tupla posicional, não como objeto: o nome de
+// cada campo se repetiria 4.799 vezes e isso sozinho era 42% do payload. O
+// cabeçalho `cols` viaja junto para o dado continuar se explicando sozinho.
+const COLS_ESTOQUE = [
+  "cod", "emp", "desc", "tipo", "xyz", "saldo", "custo", "base",
+  "dias", "ultSaida", "ultEntrada", "obsDesde", "loc", "trib",
+] as const;
+
+type Tupla = (string | number | null)[];
+interface PacoteEstoque { v: 1; cols: readonly string[]; linhas: Tupla[] }
+
+function empacotar(itens: ItemEstoque[]): PacoteEstoque {
+  return {
+    v: 1,
+    cols: COLS_ESTOQUE,
+    linhas: itens.map((i) => COLS_ESTOQUE.map((c) => i[c as keyof ItemEstoque] ?? null)),
+  };
+}
+
+function desempacotar(p: PacoteEstoque | ItemEstoque[] | null): ItemEstoque[] {
+  if (!p) return [];
+  // Tolera o formato antigo (lista de objetos) enquanto um shard não foi reescrito.
+  if (Array.isArray(p)) return p;
+  const cols = p.cols ?? COLS_ESTOQUE;
+  return p.linhas.map((linha) => {
+    const o: Record<string, unknown> = {};
+    cols.forEach((c, n) => (o[c] = linha[n]));
+    return o as unknown as ItemEstoque;
+  });
 }
 
 export interface ResumoEstoque {
@@ -153,7 +188,7 @@ export function resumirEstoque(itens: ItemEstoque[], dia: string): ResumoEstoque
 export async function gravarEstoque(itens: ItemEstoque[], dia: string): Promise<ResumoEstoque> {
   const shards: ItemEstoque[][] = Array.from({ length: SHARDS }, () => []);
   for (const i of itens) shards[shardDe(i.cod + i.emp)].push(i);
-  await Promise.all(shards.map((lista, n) => redis.set(estoqueKey(n), lista)));
+  await Promise.all(shards.map((lista, n) => redis.set(estoqueKey(n), empacotar(lista))));
 
   const resumo = resumirEstoque(itens, dia);
   const hist = (await redis.get<ResumoEstoque[]>(RESUMO_KEY)) ?? [];
@@ -166,9 +201,9 @@ export async function gravarEstoque(itens: ItemEstoque[], dia: string): Promise<
 
 export async function lerEstoque(): Promise<ItemEstoque[]> {
   const shards = await Promise.all(
-    Array.from({ length: SHARDS }, (_, n) => redis.get<ItemEstoque[]>(estoqueKey(n)))
+    Array.from({ length: SHARDS }, (_, n) => redis.get<PacoteEstoque | ItemEstoque[]>(estoqueKey(n)))
   );
-  return shards.flatMap((lista) => lista ?? []);
+  return shards.flatMap(desempacotar);
 }
 
 export async function lerResumoEstoque(): Promise<ResumoEstoque[]> {
@@ -360,7 +395,10 @@ export async function lerClientes(semanas: string[]): Promise<VendaCliente[]> {
 // ------------------------------------------------------------------- metadados
 
 export interface MetaMapa {
-  estoque?: { em: string; itens: number; capital: number };
+  estoque?: {
+    em: string; itens: number; capital: number;
+    desde: string; maisAntigo: string | null; margemDias: number | null;
+  };
   vendas?: { em: string; inicio: string; fim: string; codigos: number; cesta: number; clientes: number };
   erro?: string;
 }
@@ -404,7 +442,26 @@ async function relatorioPecas(body: {
   return Array.isArray(data) ? (data as RawRow[]) : [];
 }
 
-export async function coletarEstoque(): Promise<ResumoEstoque> {
+/**
+ * Janela do filtro ObsoletoDesde, em dias.
+ *
+ * 180 dias porque o ERP remarca obsolescência em lote e nada mais antigo que
+ * isso aparece em estoque: em 23/10/2026 a marcação mais velha era de 08/07,
+ * e 365 dias devolviam exatamente as mesmas 4.799 linhas.
+ *
+ * Isso NÃO acelera a chamada. Medimos 65 s, 215 s, 206 s e 207 s para o mesmo
+ * relatório, com janela igual ou maior — o tempo é do lado do Microwork e
+ * varia sozinho. Por isso `maxDuration` é 300 e a coleta tolera falhar: é uma
+ * foto diária, perder um dia não quebra nada.
+ *
+ * `margemDias` no meta vigia a janela: é a distância entre a borda e a
+ * marcação mais antiga encontrada (73 dias na primeira medição). Se encostar
+ * em zero, a janela ficou curta e itens estão sumindo do snapshot.
+ */
+export const JANELA_OBSOLETO = 180;
+
+export async function coletarEstoque(desde?: string): Promise<ResumoEstoque & { maisAntigo: string | null; margemDias: number | null }> {
+  const inicio = desde ?? dateCG(-JANELA_OBSOLETO);
   const linhas = await relatorioPecas({
     idrelatorioconfiguracao: 148,
     idrelatorioconsulta: 59,
@@ -412,7 +469,7 @@ export async function coletarEstoque(): Promise<ResumoEstoque> {
     idrelatoriousuarioleiaute: 963,
     filtros: [
       "CurvaXYZ=null",
-      `ObsoletoDesde=${dateCG(-365)}`,
+      `ObsoletoDesde=${inicio}`,
       "ComSaldo=True",
       "TipoMercadoria=null",
       "Marca=null",
@@ -422,8 +479,20 @@ export async function coletarEstoque(): Promise<ResumoEstoque> {
   });
   const itens = normalizarEstoque(linhas);
   const resumo = await gravarEstoque(itens, dateCG());
-  await fundirMeta({ estoque: { em: new Date().toISOString(), itens: itens.length, capital: resumo.capital } });
-  return resumo;
+
+  const marcacoes = itens.map((i) => i.obsDesde).filter((d): d is string => !!d).sort();
+  const maisAntigo = marcacoes[0] ?? null;
+  const margemDias = maisAntigo
+    ? Math.round((Date.parse(maisAntigo) - Date.parse(inicio)) / 86400000)
+    : null;
+
+  await fundirMeta({
+    estoque: {
+      em: new Date().toISOString(), itens: itens.length,
+      capital: resumo.capital, desde: inicio, maisAntigo, margemDias,
+    },
+  });
+  return { ...resumo, maisAntigo, margemDias };
 }
 
 export async function coletarVendas(inicio: string, fim: string) {

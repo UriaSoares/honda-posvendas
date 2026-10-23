@@ -5,11 +5,13 @@ import { dateCG } from "@/lib/microwork";
 // Coleta do Mapa de Peças. Chamada pelo cron do Vercel.
 //
 // Estoque e faturamento vêm em chamadas separadas porque têm pesos muito
-// diferentes: o relatório de obsoletos devolve ~4.800 linhas em cerca de 65 s,
-// enquanto os três de venda somam menos de 10 s. Juntos estourariam o limite da
-// função e, pior, uma falha no pesado derrubaria o leve junto.
+// diferentes: o relatório de obsoletos levou de 65 s a 215 s nas medições de
+// 23/10 (o tempo é do Microwork e varia sozinho), enquanto os três de venda
+// somam 3 s. Juntos estourariam o limite da função e, pior, uma falha no
+// pesado derrubaria o leve junto.
 //
 //   ?parte=estoque   foto do estoque parado (diária, sobrescreve)
+//                    ?desde=AAAA-MM-DD força outra janela de ObsoletoDesde
 //   ?parte=vendas    faturamento dos últimos N dias (acumula por semana)
 //
 // A janela de 7 dias é de propósito: nota lançada com atraso reescreve a
@@ -28,7 +30,7 @@ export async function GET(req: NextRequest) {
 
   try {
     if (parte === "estoque") {
-      const resumo = await coletarEstoque();
+      const resumo = await coletarEstoque(req.nextUrl.searchParams.get("desde") ?? undefined);
       return NextResponse.json({ ok: true, parte, resumo, ms: Date.now() - +inicio });
     }
     if (parte === "vendas") {
