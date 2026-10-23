@@ -1,6 +1,8 @@
 {
   "crons": [
     { "path": "/api/cron/pecas?dias=7", "schedule": "0 6 * * *" },
-    { "path": "/api/cron/metas-honda", "schedule": "30 6 * * *" }
+    { "path": "/api/cron/metas-honda", "schedule": "30 6 * * *" },
+    { "path": "/api/cron/mapa-pecas?parte=vendas&dias=7", "schedule": "45 6 * * *" },
+    { "path": "/api/cron/mapa-pecas?parte=estoque", "schedule": "0 7 * * *" }
   ]
 }
