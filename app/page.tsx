@@ -10,10 +10,11 @@ import KanbanPanel   from "@/components/KanbanPanel";
 import ConversasPanel from "@/components/ConversasPanel";
 import AdmPanel      from "@/components/AdmPanel";
 import MetasHondaPanel from "@/components/MetasHondaPanel";
+import PecasPanel    from "@/components/PecasPanel";
 
 interface User { email: string; name: string; role: Role; lojas?: Loja[] }
 
-type Tab = "hoje" | "amanha" | "oficina" | "kanban" | "conversas" | "metas" | "adm";
+type Tab = "hoje" | "amanha" | "oficina" | "kanban" | "conversas" | "metas" | "pecas" | "adm";
 
 const TABS: { id: Tab; label: string; icon: string; minRole?: Role }[] = [
   { id: "hoje",      label: "Hoje",            icon: "📅" },
@@ -22,6 +23,7 @@ const TABS: { id: Tab; label: string; icon: string; minRole?: Role }[] = [
   { id: "kanban",    label: "Gestão à Vista",  icon: "📋" },
   { id: "conversas", label: "Conversas",       icon: "💬" },
   { id: "metas",     label: "Metas Honda",     icon: "🎯" },
+  { id: "pecas",     label: "Peças",           icon: "⚙️", minRole: "gestao" },
   { id: "adm",       label: "ADM",             icon: "⚙️", minRole: "gestao" },
 ];
 
@@ -148,6 +150,7 @@ export default function Home() {
         {tab === "kanban"  && <KanbanPanel  store={store} />}
         {tab === "conversas" && <ConversasPanel user={user} store={store} />}
         {tab === "metas"   && <MetasHondaPanel store={store} role={user.role} />}
+        {tab === "pecas"   && <PecasPanel     store={store} />}
         {tab === "adm"     && <AdmPanel     user={user} />}
       </div>
     </div>
