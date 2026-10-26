@@ -165,7 +165,7 @@ export async function montarFila(loja?: Loja): Promise<Fila> {
   const recentes = semanas.slice(-4);
   const [estoque, vendas, cesta] = await Promise.all([
     lerEstoque(),
-    lerVendas(recentes),
+    lerVendas(),
     lerCesta(recentes),
   ]);
 
@@ -196,16 +196,29 @@ export async function montarFila(loja?: Loja): Promise<Fila> {
 
 export interface Resumo {
   estoque: { loja: string; itens: number; capital: number }[];
+  capital: number;
+  tabela: number;          // o mesmo estoque a preço de venda sugerido
+  pecas: number;
+  xyz: { curva: string; itens: number }[];
+  tributacao: { nome: string; itens: number }[];
   serie: { dia: string; capital: number }[];
   semana: { loja: string; receita: number; lucro: number; margem: number }[];
+  vendedores: { nome: string; receita: number; desconto: number; margem: number }[];
   meta: Awaited<ReturnType<typeof lerMeta>>;
+}
+
+/** Agrupa as variações de substituição tributária, que só diferem no MVA. */
+function grupoTributario(t: string): string {
+  return t.toUpperCase().includes("SUBST") ? "Substituição tributária" : "Tributado";
 }
 
 export async function montarResumo(): Promise<Resumo> {
   const semanas = await lerSemanas();
-  const [serieBruta, vendas, meta] = await Promise.all([
+  const [serieBruta, vendas, estoqueBruto, cesta, meta] = await Promise.all([
     lerResumoEstoque(),
-    lerVendas(semanas.slice(-1)),
+    lerVendas(),
+    lerEstoque(),
+    lerCesta(semanas.slice(-2)),
     lerMeta(),
   ]);
 
@@ -222,8 +235,34 @@ export async function montarResumo(): Promise<Resumo> {
     porLoja.set(v.emp, r);
   }
 
+  const contar = (chave: (i: ItemEstoque) => string) => {
+    const m = new Map<string, number>();
+    for (const i of estoqueBruto) {
+      const k = chave(i);
+      m.set(k, (m.get(k) ?? 0) + 1);
+    }
+    return [...m].sort((a, b) => b[1] - a[1]);
+  };
+
+  // Desconto e margem por vendedor, da última semana coletada. O desconto sai
+  // sobre o preço cheio (valor + desconto), não sobre o que foi faturado.
+  const porVend = new Map<string, { receita: number; desconto: number; lucro: number }>();
+  for (const l of cesta) {
+    if (!l.vendedor) continue;
+    const v = porVend.get(l.vendedor) ?? { receita: 0, desconto: 0, lucro: 0 };
+    v.receita += l.valor;
+    v.desconto += l.desconto;
+    v.lucro += l.lucro;
+    porVend.set(l.vendedor, v);
+  }
+
   return {
     estoque,
+    capital: Math.round(estoque.reduce((s, e) => s + e.capital, 0) * 100) / 100,
+    tabela: Math.round(estoqueBruto.reduce((s, i) => s + i.saldo * i.base, 0) * 100) / 100,
+    pecas: Math.round(estoqueBruto.reduce((s, i) => s + i.saldo, 0)),
+    xyz: contar((i) => i.xyz || "—").map(([curva, itens]) => ({ curva, itens })),
+    tributacao: contar((i) => grupoTributario(i.trib)).map(([nome, itens]) => ({ nome, itens })),
     serie: serieBruta.slice(-30).map((r) => ({ dia: r.dia, capital: r.capital })),
     semana: [...porLoja].map(([loja, r]) => ({
       loja,
@@ -231,6 +270,14 @@ export async function montarResumo(): Promise<Resumo> {
       lucro: Math.round(r.lucro * 100) / 100,
       margem: r.receita ? Math.round((r.lucro / r.receita) * 1000) / 1000 : 0,
     })),
+    vendedores: [...porVend]
+      .map(([nome, v]) => ({
+        nome,
+        receita: Math.round(v.receita * 100) / 100,
+        desconto: v.receita + v.desconto ? Math.round((v.desconto / (v.receita + v.desconto)) * 1000) / 1000 : 0,
+        margem: v.receita ? Math.round((v.lucro / v.receita) * 1000) / 1000 : 0,
+      }))
+      .sort((a, b) => b.receita - a.receita),
     meta,
   };
 }
@@ -252,7 +299,7 @@ export async function montarFicha(codigo: string): Promise<Ficha | null> {
   const semanas = await lerSemanas();
   const [estoque, vendas, cesta] = await Promise.all([
     lerEstoque(),
-    lerVendas(semanas),
+    lerVendas(),
     lerCesta(semanas),
   ]);
 

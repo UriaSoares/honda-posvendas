@@ -21,8 +21,14 @@ interface Fila {
 }
 interface Resumo {
   estoque: { loja: string; itens: number; capital: number }[];
+  capital: number;
+  tabela: number;
+  pecas: number;
+  xyz: { curva: string; itens: number }[];
+  tributacao: { nome: string; itens: number }[];
   serie: { dia: string; capital: number }[];
   semana: { loja: string; receita: number; lucro: number; margem: number }[];
+  vendedores: { nome: string; receita: number; desconto: number; margem: number }[];
   meta: { estoque?: { em: string; itens: number; margemDias: number | null }; vendas?: { em: string; inicio: string; fim: string } } | null;
 }
 interface Ficha {
@@ -44,6 +50,17 @@ const pct = (n: number) => `${(n * 100).toFixed(1).replace(".", ",")}%`;
 const dataBR = (iso: string | null) =>
   iso ? iso.split("-").reverse().join("/") : "—";
 
+const TITULO: React.CSSProperties = {
+  font: "800 italic 20px/1.1 'Saira', 'Mulish', system-ui, sans-serif",
+  textTransform: "uppercase", color: "#1060B0", margin: "0 0 2px",
+  borderBottom: "3px solid #FBB814", paddingBottom: 5,
+};
+const SUB: React.CSSProperties = { fontSize: 13, color: "#64748b", margin: "0 0 12px" };
+const NUMERO: React.CSSProperties = {
+  font: "800 italic 30px/1 'Saira', 'Mulish', system-ui, sans-serif",
+  color: "#1060B0", margin: "6px 0 3px", wordBreak: "break-word",
+};
+const PE: React.CSSProperties = { fontSize: 12.5, color: "#64748b" };
 const CARD: React.CSSProperties = {
   background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: 14,
 };
@@ -74,19 +91,19 @@ function subTab(ativo: boolean): React.CSSProperties {
 }
 
 export default function PecasPanel({ store }: { store: Loja }) {
-  const [visao, setVisao] = useState<Visao>("fila");
+  const [visao, setVisao] = useState<Visao>("resumo");
 
   return (
     <div>
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+        <button style={subTab(visao === "resumo")} onClick={() => setVisao("resumo")}>
+          📊 Como estamos
+        </button>
         <button style={subTab(visao === "fila")} onClick={() => setVisao("fila")}>
           🎯 Oportunidades
         </button>
         <button style={subTab(visao === "ficha")} onClick={() => setVisao("ficha")}>
           🔎 Ficha da peça
-        </button>
-        <button style={subTab(visao === "resumo")} onClick={() => setVisao("resumo")}>
-          📊 Resumo
         </button>
       </div>
 
@@ -358,73 +375,193 @@ function PainelFicha() {
 
 // ------------------------------------------------------------------- o resumo
 
+function Barra({ valor, maximo, cor, largura = 320 }: { valor: number; maximo: number; cor: string; largura?: number }) {
+  const w = maximo > 0 ? Math.max((valor / maximo) * largura, valor > 0 ? 3 : 0) : 0;
+  return (
+    <svg viewBox={`0 0 ${largura} 20`} style={{ width: largura, maxWidth: "100%", height: 20 }} aria-hidden="true">
+      <rect x="0" y="3" width={largura} height="14" rx="4" fill="#e8ecf2" />
+      <rect x="0" y="3" width={w} height="14" rx="4" fill={cor} />
+    </svg>
+  );
+}
+
+const COR_LOJA: Record<string, string> = { CGR: "#1060B0", TEM: "#C2410C" };
+
 function PainelResumo() {
   const [dados, setDados] = useState<Resumo | null>(null);
   const [erro, setErro] = useState("");
 
   useEffect(() => {
+    let vivo = true;
     fetch("/api/pecas?visao=resumo")
       .then((r) => r.json())
-      .then((d) => (d.error ? setErro(d.error) : setDados(d)))
-      .catch((e) => setErro(String(e)));
+      .then((d) => {
+        if (!vivo) return;
+        if (d.error) setErro(d.error);
+        else setDados(d);
+      })
+      .catch((e) => { if (vivo) setErro(String(e)); });
+    return () => { vivo = false; };
   }, []);
 
   if (erro) return <Aviso texto={`Não deu para carregar: ${erro}`} />;
   if (!dados) return <Aviso texto="Carregando..." />;
 
-  const capitalTotal = dados.estoque.reduce((s, e) => s + e.capital, 0);
+  const receitaSemana = dados.semana.reduce((s, x) => s + x.receita, 0);
+  const lucroSemana = dados.semana.reduce((s, x) => s + x.lucro, 0);
+  const margemSemana = receitaSemana ? lucroSemana / receitaSemana : 0;
+
   const serie = dados.serie;
   const primeiro = serie[0]?.capital ?? 0;
   const ultimo = serie.at(-1)?.capital ?? 0;
-  const variacao = primeiro ? (ultimo - primeiro) / primeiro : 0;
+  const variacao = serie.length > 1 && primeiro ? (ultimo - primeiro) / primeiro : null;
+
+  const maxCapital = Math.max(...dados.estoque.map((e) => e.capital), 1);
+  const maxXyz = Math.max(...dados.xyz.map((x) => x.itens), 1);
+  const maxTrib = Math.max(...dados.tributacao.map((t) => t.itens), 1);
+  const maxVend = Math.max(...dados.vendedores.map((v) => v.receita), 1);
+  const multiplo = dados.capital ? dados.tabela / dados.capital : 0;
 
   return (
-    <div style={{ display: "grid", gap: 14 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 10 }}>
-        <div style={CARD}>
-          <span style={ROTULO}>Capital parado</span>
-          <div style={{ fontSize: 24, fontWeight: 800, color: "#082F58", marginTop: 3 }}>{brl(capitalTotal)}</div>
-          {serie.length > 1 && (
-            <span style={{ fontSize: 12, color: variacao > 0 ? "#BE242C" : "#1A7F4F" }}>
-              {variacao > 0 ? "▲" : "▼"} {pct(Math.abs(variacao))} em {serie.length} dias
-            </span>
-          )}
-        </div>
-        {dados.estoque.map((e) => (
-          <div key={e.loja} style={CARD}>
-            <span style={ROTULO}>{e.loja}</span>
-            <div style={{ fontSize: 20, fontWeight: 800, color: "#082F58", marginTop: 3 }}>{brl(e.capital)}</div>
-            <span style={{ fontSize: 12, color: "#64748b" }}>{e.itens.toLocaleString("pt-BR")} códigos</span>
+    <div style={{ display: "grid", gap: 20 }}>
+      {/* Como estamos */}
+      <section>
+        <h3 style={TITULO}>Como estamos</h3>
+        <p style={SUB}>Última semana coletada · todas as saídas de peça</p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 10 }}>
+          <div style={{ ...CARD, borderLeft: "5px solid #1060B0" }}>
+            <span style={ROTULO}>Margem da semana</span>
+            <div style={NUMERO}>{pct(margemSemana)}</div>
+            <span style={PE}>{brl(lucroSemana)} de lucro</span>
           </div>
-        ))}
-      </div>
+          <div style={CARD}>
+            <span style={ROTULO}>Receita da semana</span>
+            <div style={{ ...NUMERO, color: "#0F1115" }}>{brl(receitaSemana)}</div>
+            <span style={PE}>
+              {dados.semana.map((s) => `${s.loja} ${brl(s.receita)}`).join(" · ") || "—"}
+            </span>
+          </div>
+          <div style={CARD}>
+            <span style={ROTULO}>Capital parado</span>
+            <div style={{ ...NUMERO, color: "#0F1115" }}>{brl(dados.capital)}</div>
+            <span style={PE}>
+              {dados.estoque.reduce((s, e) => s + e.itens, 0).toLocaleString("pt-BR")} códigos ·{" "}
+              {dados.pecas.toLocaleString("pt-BR")} peças
+            </span>
+          </div>
+          <div style={CARD}>
+            <span style={ROTULO}>Variação do capital</span>
+            {variacao === null ? (
+              <>
+                <div style={{ fontSize: 17, fontWeight: 700, color: "#5A6271", marginTop: 6 }}>
+                  Primeira medição
+                </div>
+                <span style={PE}>A comparação aparece a partir da segunda foto.</span>
+              </>
+            ) : (
+              <>
+                <div style={{ ...NUMERO, color: variacao > 0 ? "#BE242C" : "#1A7F4F" }}>
+                  {variacao > 0 ? "▲" : "▼"} {pct(Math.abs(variacao))}
+                </div>
+                <span style={PE}>em {serie.length} dias de coleta</span>
+              </>
+            )}
+          </div>
+        </div>
+      </section>
 
-      <div style={CARD}>
-        <span style={ROTULO}>Última semana coletada</span>
-        <p style={{ fontSize: 12, color: "#64748b", margin: "4px 0 0" }}>
-          Toda saída de peça: atacado, balcão, oficina e seguradora.
+      {/* Onde o capital está preso */}
+      <section>
+        <h3 style={TITULO}>Onde o capital está preso</h3>
+        <p style={SUB}>
+          {brl(dados.capital)} de custo valem {brl(dados.tabela)} a preço de tabela
+          {multiplo > 0 && ` — ${multiplo.toFixed(1).replace(".", ",")} vezes`}
         </p>
-        {dados.semana.length === 0 ? (
-          <Aviso texto="Sem venda na última semana coletada." />
-        ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 6 }}>
-            <thead><tr>
-              <th style={TH}>Loja</th><th style={TH}>Receita</th>
-              <th style={TH}>Lucro</th><th style={TH}>Margem</th>
-            </tr></thead>
-            <tbody>
-              {dados.semana.map((s) => (
-                <tr key={s.loja}>
-                  <td style={{ ...TD, fontWeight: 700 }}>{s.loja}</td>
-                  <td style={TD}>{brl(s.receita)}</td>
-                  <td style={TD}>{brl(s.lucro)}</td>
-                  <td style={{ ...TD, fontWeight: 700 }}>{pct(s.margem)}</td>
-                </tr>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(330px,1fr))", gap: 12 }}>
+          <div style={CARD}>
+            <span style={ROTULO}>Por loja</span>
+            <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
+              {dados.estoque.map((e) => (
+                <div key={e.loja}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 2 }}>
+                    <b>{e.loja}</b>
+                    <span style={{ fontWeight: 700 }}>{brl(e.capital)}</span>
+                  </div>
+                  <Barra valor={e.capital} maximo={maxCapital} cor={COR_LOJA[e.loja] ?? "#1060B0"} />
+                  <span style={{ fontSize: 11.5, color: "#64748b" }}>
+                    {e.itens.toLocaleString("pt-BR")} códigos
+                  </span>
+                </div>
               ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+            </div>
+          </div>
+
+          <div style={CARD}>
+            <span style={ROTULO}>Previsibilidade de demanda</span>
+            <p style={{ ...PE, margin: "2px 0 10px" }}>Curva XYZ dos códigos parados.</p>
+            <div style={{ display: "grid", gap: 8 }}>
+              {dados.xyz.map((x) => (
+                <div key={x.curva}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                    <b>{x.curva}</b>
+                    <span>{x.itens.toLocaleString("pt-BR")}</span>
+                  </div>
+                  <Barra valor={x.itens} maximo={maxXyz} cor="#1060B0" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={CARD}>
+            <span style={ROTULO}>Regime tributário</span>
+            <p style={{ ...PE, margin: "2px 0 10px" }}>
+              Pesa na decisão de transferir entre lojas: na ST o imposto já foi pago.
+            </p>
+            <div style={{ display: "grid", gap: 8 }}>
+              {dados.tributacao.map((t) => (
+                <div key={t.nome}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                    <b>{t.nome}</b>
+                    <span>{t.itens.toLocaleString("pt-BR")}</span>
+                  </div>
+                  <Barra valor={t.itens} maximo={maxTrib} cor="#1060B0" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Equipe */}
+      {dados.vendedores.length > 0 && (
+        <section>
+          <h3 style={TITULO}>A equipe</h3>
+          <p style={SUB}>Última semana coletada · receita, desconto e margem por vendedor</p>
+          <div style={{ overflowX: "auto", ...CARD }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead><tr>
+                <th style={TH}>Vendedor</th><th style={TH}>Receita</th>
+                <th style={TH} /><th style={TH}>Desconto</th><th style={TH}>Margem</th>
+              </tr></thead>
+              <tbody>
+                {dados.vendedores.map((v) => (
+                  <tr key={v.nome}>
+                    <td style={{ ...TD, fontWeight: 700 }}>{v.nome}</td>
+                    <td style={{ ...TD, whiteSpace: "nowrap" }}>{brl(v.receita)}</td>
+                    <td style={{ ...TD, width: "40%" }}>
+                      <Barra valor={v.receita} maximo={maxVend} cor="#1060B0" largura={260} />
+                    </td>
+                    <td style={TD}>{pct(v.desconto)}</td>
+                    <td style={{ ...TD, fontWeight: 700, color: v.margem < 0.25 ? "#BE242C" : "#1A7F4F" }}>
+                      {pct(v.margem)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {dados.meta && (
         <div style={{ ...CARD, background: "#f8fafc" }}>

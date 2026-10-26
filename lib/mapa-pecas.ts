@@ -24,9 +24,14 @@ const NS = "mapa:pecas";
 // rápido em paralelo.
 const SHARDS = 20;
 const estoqueKey = (n: number) => `${NS}:estoque:${n}`;
-const vendaKey = (semana: string) => `${NS}:venda:${semana}`;
+// O relatório por código e o de venda por cliente NÃO trazem data da nota: são
+// uma janela móvel de 7 dias, não histórico. Guardá-los por semana ISO
+// arquivava a mesma janela sob duas semanas e contava em dobro. Ficam numa
+// chave só, sobrescrita a cada coleta. A cesta tem data por linha, então essa
+// sim é histórico de verdade, fatiada por semana.
+const VENDA_ATUAL = `${NS}:venda:atual`;
+const CLIENTE_ATUAL = `${NS}:cliente:atual`;
 const cestaKey = (semana: string) => `${NS}:cesta:${semana}`;
-const clienteKey = (semana: string) => `${NS}:cliente:${semana}`;
 const RESUMO_KEY = `${NS}:estoque:resumo`;
 const SEMANAS_KEY = `${NS}:semanas`;
 const META_KEY = `${NS}:meta`;
@@ -377,9 +382,9 @@ export async function lerSemanas(): Promise<string[]> {
   return (await redis.get<string[]>(SEMANAS_KEY)) ?? [];
 }
 
-export async function lerVendas(semanas: string[]): Promise<VendaCodigo[]> {
-  const listas = await Promise.all(semanas.map((s) => redis.get<VendaCodigo[]>(vendaKey(s))));
-  return listas.flatMap((l) => l ?? []);
+/** A janela móvel de 7 dias por código, como veio na última coleta. */
+export async function lerVendas(): Promise<VendaCodigo[]> {
+  return (await redis.get<VendaCodigo[]>(VENDA_ATUAL)) ?? [];
 }
 
 export async function lerCesta(semanas: string[]): Promise<ItemCliente[]> {
@@ -387,9 +392,8 @@ export async function lerCesta(semanas: string[]): Promise<ItemCliente[]> {
   return listas.flatMap((l) => l ?? []);
 }
 
-export async function lerClientes(semanas: string[]): Promise<VendaCliente[]> {
-  const listas = await Promise.all(semanas.map((s) => redis.get<VendaCliente[]>(clienteKey(s))));
-  return listas.flatMap((l) => l ?? []);
+export async function lerClientes(): Promise<VendaCliente[]> {
+  return (await redis.get<VendaCliente[]>(CLIENTE_ATUAL)) ?? [];
 }
 
 // ------------------------------------------------------------------- metadados
@@ -506,13 +510,10 @@ export async function coletarVendas(inicio: string, fim: string) {
   const cesta = normalizarCesta(porItemCliente);
   const clientes = normalizarClientes(porCliente);
 
-  // O relatório por código não traz data da nota: a semana é a da coleta.
-  const semanaAtual = semanaISO(fim);
-  await redis.set(vendaKey(semanaAtual), vendas);
+  await redis.set(VENDA_ATUAL, vendas);
+  await redis.set(CLIENTE_ATUAL, clientes);
   const semCesta = await gravarSemanas(cestaKey, cesta, (r) => (r.data ? semanaISO(r.data) : null));
-  await redis.set(clienteKey(semanaAtual), clientes);
-
-  const semanas = await registrarSemanas([semanaAtual, ...semCesta]);
+  const semanas = await registrarSemanas(semCesta);
   await fundirMeta({
     vendas: {
       em: new Date().toISOString(), inicio, fim,
